@@ -61,12 +61,15 @@ jobs:
 
       - name: Rename binary
         if: env.build_needed == 'true'
-        shell: bash
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
-          cd dist
-          zip rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}.zip rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
+
+      - name: Zip binary
+        uses: vimtor/action-zip@v1
+        with:
+          files: dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
+          dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
