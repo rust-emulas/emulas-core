@@ -46,30 +46,16 @@ jobs:
         uses: actions/cache@v4
         with:
           path: |
+            ~/.cargo
             ~/.cargo/registry
             ~/.cargo/git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Check if src folder has changes
-        id: changes
-        shell: bash
-        run: |
-          echo "Checking changes in src/ or Cargo files..."
-          git fetch origin ${{ github.event.before }}
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src/|Cargo\.(toml|lock)' || true)
-          if [ -n "$CHANGED_FILES" ]; then
-            echo "build_needed=true" >> $GITHUB_ENV
-          else
-            echo "build_needed=false" >> $GITHUB_ENV
-          fi
-
       - name: Build project
-        if: env.build_needed == 'true'
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
-        if: env.build_needed == 'true'
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
@@ -82,7 +68,6 @@ jobs:
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
-        if: env.build_needed == 'true'
         with:
           name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}
           path: dist/*.zip
