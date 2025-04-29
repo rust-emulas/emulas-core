@@ -6,6 +6,7 @@ on:
 
 jobs:
   build:
+    name: Build Linux
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -23,10 +24,12 @@ jobs:
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
       - uses: actions/checkout@v4
-      - name: Build binaries in "${{ matrix.BUILD_TARGET }}" mode
-        run: cargo check && cargo build --profile ${{ matrix.BUILD_TARGET }}
+      - name: Check rust code "${{ matrix.BUILD_TARGET }}" mode
+        run: cargo check
+      - name: Build Linux binary in "${{ matrix.BUILD_TARGET }} mode"
+        run: cargo build --profile ${{ matrix.BUILD_TARGET }}
       - name: Upload release artifact (Linux)
         uses: actions/upload-artifact@v4
         with:
-          name: nes-emulas
-          path: target/${{ matrix.BUILD_TARGET }}/nes-emulas
+          name: rust-emulas
+          path: target/${{ matrix.BUILD_TARGET }}/rust-emulas
