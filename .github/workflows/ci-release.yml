@@ -66,11 +66,11 @@ jobs:
           fi
 
       - name: Build project
-        if: env.build_needed == 'true' && steps.cache-primes.outputs.cache-hit != 'true'
+        if: env.build_needed == 'true'
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
-        if: env.build_needed == 'true' && steps.cache-primes.outputs.cache-hit != 'true'
+        if: env.build_needed == 'true'
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
