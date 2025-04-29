@@ -61,12 +61,6 @@ jobs:
         with:
           path: ./artifacts
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          files: |
-            artifacts/*/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      - name: Publish built binary to GitHub releases
+        run: |
+          gh release create ${{ env.VERSION }} artifacts/*/* --generate-notes
