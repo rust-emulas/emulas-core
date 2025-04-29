@@ -27,6 +27,7 @@ jobs:
 
       - name: Check if src folder has changes
         id: changes
+        shell: bash
         run: |
           echo "Checking changes in src/..."
           git fetch origin ${{ github.event.before }}
