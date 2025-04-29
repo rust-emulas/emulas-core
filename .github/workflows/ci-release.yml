@@ -42,13 +42,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
       - name: Check if src folder has changes
         id: changes
         shell: bash
+        if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           echo "Checking changes in src/..."
           git fetch origin ${{ github.event.before }}
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src/' || true)
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^(src/)|(Cargo\.toml|lock)' || true)
           if [ -n "$CHANGED_FILES" ]; then
             echo "build_needed=true" >> $GITHUB_ENV
           else
@@ -56,11 +66,11 @@ jobs:
           fi
 
       - name: Build project
-        if: env.build_needed == 'true'
+        if: env.build_needed == 'true' && steps.cache-primes.outputs.cache-hit != 'true'
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
-        if: env.build_needed == 'true'
+        if: env.build_needed == 'true' && steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}

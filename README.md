@@ -1,6 +1,6 @@
 ## Overview
 
-`rust-emula` is a Rust-based project designed for creating and managing emulators. It provides a robust framework for building emulation software with performance and reliability in mind.
+`rust-emulas` is a Rust-based project designed for creating and managing emulators. It provides a robust framework for building emulation software with performance and reliability in mind.
 
 ## Features
 
