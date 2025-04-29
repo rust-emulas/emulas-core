@@ -61,16 +61,19 @@ jobs:
 
       - name: Rename binary
         if: env.build_needed == 'true'
+        shell: bash
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
+          cd dist
+          zip rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}.zip rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         if: env.build_needed == 'true'
         with:
           name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}
-          path: dist/
+          path: dist/*.zip
           if-no-files-found: error
 
   release:
@@ -85,10 +88,10 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./dist
+          path: ./artifacts
 
       - name: Publish built binary to GitHub releases
         run: |
-          gh release create ${{ needs.extract-version.outputs.version }} dist/*/* --generate-notes
+          gh release create ${{ needs.extract-version.outputs.version }} artifacts/*/*.zip --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
