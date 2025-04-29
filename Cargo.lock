@@ -3,6 +3,30 @@
 version = 4
 
 [[package]]
+name = "cc"
+version = "1.2.20"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04da6a0d40b948dfc4fa8f5bbf402b0fc1a64a28dbf7d12ffd683550f2c1b63a"
+dependencies = [
+ "shlex",
+]
+
+[[package]]
+name = "cmake"
+version = "0.1.54"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7caa3f9de89ddbe2c607f4101924c5abec803763ae9534e4f4d7d8f84aa81f0"
+dependencies = [
+ "cc",
+]
+
+[[package]]
+name = "rpkg-config"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a2d2f3481209a6b42eec2fbb49063fb4e8d35b57023401495d4fe0f85c817f0"
+
+[[package]]
 name = "rust-emulas"
 version = "0.1.1"
 dependencies = [
@@ -10,7 +34,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdl3-src"
+version = "3.2.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e677fa126db179fb8f03c982163321496ddf57a6d8a1e41eeef4600f956038b1"
+
+[[package]]
 name = "sdl3-sys"
 version = "0.4.7+SDL3-3.2.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f0d16a8a3623a4cb39a3661c81d9d4c5fd77ada27fc056e320b3651bf7bde1b1"
+dependencies = [
+ "cmake",
+ "rpkg-config",
+ "sdl3-src",
+]
+
+[[package]]
+name = "shlex"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
