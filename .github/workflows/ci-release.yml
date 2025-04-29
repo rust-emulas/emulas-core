@@ -1,0 +1,72 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main # Executa quando você fizer push na branch principal
+      - "feature/**"
+
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            BUILD_TARGET: x86_64-unknown-linux-gnu
+            EXT: ""
+          - os: windows-latest
+            BUILD_TARGET: x86_64-pc-windows-msvc
+            EXT: ".exe"
+
+    env:
+      CARGO_TERM_COLOR: always
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build project
+        run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
+
+      - name: Extract version from Cargo.toml
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(cargo pkgid | sed 's/.*#//')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Rename binary
+        run: |
+          mkdir -p dist
+          cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ env.VERSION }}
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          files: |
+            artifacts/*/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
