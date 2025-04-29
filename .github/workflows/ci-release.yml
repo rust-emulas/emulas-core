@@ -26,24 +26,41 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if src folder has changes
+        id: changes
+        shell: bash
+        run: |
+          echo "Checking changes in src/..."
+          git fetch origin ${{ github.event.before }}
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src/' || true)
+          if [ -n "$CHANGED_FILES" ]; then
+            echo "build_needed=true" >> $GITHUB_ENV
+          else
+            echo "build_needed=false" >> $GITHUB_ENV
+          fi
+
       - name: Build project
+        if: env.build_needed == 'true'
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Extract version from Cargo.toml
         id: version
         shell: bash
+        if: env.build_needed == 'true'
         run: |
           VERSION=$(cargo pkgid | sed 's/.*#//')
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Rename binary
+        if: env.build_needed == 'true'
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
+        if: env.build_needed == 'true'
         with:
           name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ env.VERSION }}
           path: dist/
@@ -64,3 +81,5 @@ jobs:
       - name: Publish built binary to GitHub releases
         run: |
           gh release create ${{ env.VERSION }} artifacts/*/* --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
