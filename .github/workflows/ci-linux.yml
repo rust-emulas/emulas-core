@@ -41,7 +41,7 @@ jobs:
         if: env.build_needed == 'true'
         run: cargo check
 
-      - name: Build Windows binary in "${{ matrix.BUILD_TARGET }} mode"
+      - name: Build Linux binary in "${{ matrix.BUILD_TARGET }} mode"
         if: env.build_needed == 'true'
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
 
