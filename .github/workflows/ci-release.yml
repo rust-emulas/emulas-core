@@ -85,10 +85,10 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          path: ./artifacts
+          path: ./dist
 
       - name: Publish built binary to GitHub releases
         run: |
-          gh release create ${{ needs.extract-version.outputs.version }} artifacts/*/* --generate-notes
+          gh release create ${{ needs.extract-version.outputs.version }} dist/*/* --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
