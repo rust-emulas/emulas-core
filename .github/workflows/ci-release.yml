@@ -54,7 +54,6 @@ jobs:
       - name: Check if src folder has changes
         id: changes
         shell: bash
-        if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
           echo "Checking changes in src/ or Cargo files..."
           git fetch origin ${{ github.event.before }}
