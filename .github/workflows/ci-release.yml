@@ -56,9 +56,9 @@ jobs:
         shell: bash
         if: steps.cache-primes.outputs.cache-hit != 'true'
         run: |
-          echo "Checking changes in src/..."
+          echo "Checking changes in src/ or Cargo files..."
           git fetch origin ${{ github.event.before }}
-          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^(src/)|(Cargo\.toml|lock)' || true)
+          CHANGED_FILES=$(git diff --name-only ${{ github.event.before }} ${{ github.sha }} | grep '^src/|Cargo\.(toml|lock)' || true)
           if [ -n "$CHANGED_FILES" ]; then
             echo "build_needed=true" >> $GITHUB_ENV
           else
