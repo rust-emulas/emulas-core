@@ -45,9 +45,16 @@ jobs:
         if: env.build_needed == 'true'
         run: cargo build --profile ${{ matrix.BUILD_TARGET }}
 
+      - name: Extract project version
+        if: env.build_needed == 'true'
+        id: get_version
+        run: |
+          VERSION=$(grep '^version =' Cargo.toml | head -n 1 | sed 's/version = "\(.*\)"/\1/')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
       - name: Upload release artifact (Linux)
         if: env.build_needed == 'true'
         uses: actions/upload-artifact@v4
         with:
-          name: rust-emulas-linux
+          name: rust-emulas-linux-${{ env.VERSION || '0.1.0' }}
           path: target/${{ matrix.BUILD_TARGET }}
