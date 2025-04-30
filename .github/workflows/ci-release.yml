@@ -63,12 +63,12 @@ jobs:
         uses: vimtor/action-zip@v1
         with:
           files: dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
-          dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}.zip
+          dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}.zip
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ github.ref_name }}-${{ needs.extract-version.outputs.version }}
+          name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}
           path: dist/*.zip
           if-no-files-found: error
 
