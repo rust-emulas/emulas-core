@@ -55,17 +55,20 @@ jobs:
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
+        if: github.ref_name == 'main'
         run: |
           mkdir -p dist
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
 
       - name: Zip binary
+        if: github.ref_name == 'main'
         uses: vimtor/action-zip@v1
         with:
           files: dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
           dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}.zip
 
       - name: Upload artifact
+        if: github.ref_name == 'main'
         uses: actions/upload-artifact@v4
         with:
           name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}
@@ -73,7 +76,7 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref_name == 'main'
     needs:
       - extract-version
       - build
