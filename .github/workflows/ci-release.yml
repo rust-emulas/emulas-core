@@ -73,6 +73,7 @@ jobs:
           if-no-files-found: error
 
   release:
+    if: github.ref == 'refs/heads/main'
     needs:
       - extract-version
       - build
