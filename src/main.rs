@@ -1,3 +1,8 @@
+
+mod memory;
+
+use memory::bus::Bus;
+
 use std::ops::Not;
 
 use std::{
@@ -53,4 +58,5 @@ fn main() {
     // Cleanup
     unsafe {SDL_DestroyWindow(window)};
     unsafe {SDL_Quit()};
+
 }
