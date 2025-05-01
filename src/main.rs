@@ -3,7 +3,7 @@ mod memory;
 use memory::bus::Bus;
 
 fn main() {
-    let mut bus = Bus::new();
+    let bus = Bus::new();
 
     // Simular a escrita do opcode `LDA #0x42` (0xA9) em 0x0000 e o operando 0x42 em 0x0001
     let addr = 0x0000;

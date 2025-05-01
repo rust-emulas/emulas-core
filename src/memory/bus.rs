@@ -4,9 +4,9 @@ const PPU_SIZE: usize = 8192; // 8 KiB = 0x3FFF - 0x2000 + 1
 
 pub struct Bus {
     ram: [u8; RAM_SIZE],
-    pgrom: [u8; PGROM_SIZE], // 32 KiB = 0xFFFF - 0x8000 + 1
-    pgrom_mirror_size: usize,
-    ppuram: [u8; PPU_SIZE], // 8 KiB = 0x2000 - 0x3FFF + 1
+    prgrom: [u8; PGROM_SIZE], // 32 KiB = 0xFFFF - 0x8000 + 1
+    prgrom_mirror_size: usize,
+    ppuram: [u8; PPU_SIZE], // 8 KiB = 0x3FFF - 0x2000 + 1
     ppuram_mirror_size: usize,
 }
 
@@ -14,8 +14,8 @@ impl Bus {
     pub fn new() -> Self {
         Bus {
             ram: [0; RAM_SIZE],
-            pgrom: [0; PGROM_SIZE],
-            pgrom_mirror_size: 0x8000,
+            prgrom: [0; PGROM_SIZE],
+            prgrom_mirror_size: 0x8000,
             ppuram: [0; PPU_SIZE],
             ppuram_mirror_size: 0x2000,
         }
@@ -43,11 +43,11 @@ impl Bus {
             0x2000..=0x3FFF => {
                 let idx = Self::mirror_index(addr, 0x2000, 0x2000, self.ppuram_mirror_size);
                 self.ppuram[idx]
-            }
+            } // ppu + mirrors
             0x8000..=0xFFFF => {
-                let idx = Self::mirror_index(addr, 0x8000, 0x4000, self.pgrom_mirror_size);
-                self.pgrom[idx]
-            }
+                let idx = Self::mirror_index(addr, 0x8000, 0x4000, self.prgrom_mirror_size);
+                self.prgrom[idx]
+            } // pgrom 32/16 KiB
             _ => {
                 eprintln!("Tentativa de acesso inválido: {:#X}", addr);
                 0xFF
@@ -58,15 +58,15 @@ impl Bus {
     #[inline(always)]
     pub fn write(&mut self, addr: u16, value: u8) {
         match addr {
-            0x0000..=0x1FFF => self.ram[Self::mirror_ram(addr)] = value,
+            0x0000..=0x1FFF => self.ram[Self::mirror_ram(addr)] = value, // RAM + mirrors
             0x2000..=0x3FFF => {
                 let idx = Self::mirror_index(addr, 0x2000, 0x2000, self.ppuram_mirror_size);
                 self.ppuram[idx] = value
-            }
+            } // ppu + mirrors
             0x8000..=0xFFFF => {
-                let idx = Self::mirror_index(addr, 0x8000, 0x4000, self.pgrom_mirror_size);
-                self.pgrom[idx] = value;
-            }
+                let idx = Self::mirror_index(addr, 0x8000, 0x4000, self.prgrom_mirror_size);
+                self.prgrom[idx] = value;
+            } // pgrom 32/16 KiB
             _ => {
                 eprintln!("Tentativa de acesso inválido: {:#X}", addr);
             }
