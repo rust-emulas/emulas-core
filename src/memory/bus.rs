@@ -17,7 +17,7 @@ impl Bus {
             prgrom: [0; PGROM_SIZE],
             prgrom_mirror_size: 0x8000,
             ppuram: [0; PPU_SIZE],
-            ppuram_mirror_size: 0x2000,
+            ppuram_mirror_size: PPU_SIZE,
         }
     }
 
@@ -47,7 +47,7 @@ impl Bus {
             0x8000..=0xFFFF => {
                 let idx = Self::mirror_index(addr, 0x8000, 0x4000, self.prgrom_mirror_size);
                 self.prgrom[idx]
-            } // pgrom 32/16 KiB
+            } // prgrom 32/16 KiB
             _ => {
                 eprintln!("Tentativa de acesso inválido: {:#X}", addr);
                 0xFF
