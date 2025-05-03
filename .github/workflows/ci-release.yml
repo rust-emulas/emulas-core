@@ -7,32 +7,16 @@ on:
       - "feature/**"
 
 jobs:
-  extract-version:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-    steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
-
-      - name: Extract version
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(cargo pkgid | sed 's/.*#//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
   build:
-    needs: extract-version
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2025]
         include:
           - os: ubuntu-latest
             BUILD_TARGET: x86_64-unknown-linux-gnu
             EXT: ""
-          - os: windows-latest
+          - os: windows-2025
             BUILD_TARGET: x86_64-pc-windows-msvc
             EXT: ".exe"
 
@@ -41,46 +25,60 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-
       - name: Cache
+        id: cache-cargo
         uses: actions/cache@v4
         with:
           path: |
+            ~/.cargo/bin
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('./Cargo.lock') }}
+          key: ${{ runner.os }}-cargo-v1
 
-      - name: Build project
-        run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
+      - name: Install SDL Linux dependencies
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install build-essential git make \
+          pkg-config cmake ninja-build gnome-desktop-testing libasound2-dev libpulse-dev \
+          libaudio-dev libjack-dev libsndio-dev libx11-dev libxext-dev \
+          libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
+          libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
+          libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev
+
+      - name: Build Project
+        run: |
+          cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
         if: github.ref_name == 'main'
         run: |
           mkdir -p dist
-          cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
+          cp -r target/${{ matrix.BUILD_TARGET }}/release dist/
 
       - name: Zip binary
         if: github.ref_name == 'main'
         uses: vimtor/action-zip@v1
         with:
-          files: dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
-          dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}.zip
+          files: dist/
+          dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}.zip
 
       - name: Upload artifact
         if: github.ref_name == 'main'
         uses: actions/upload-artifact@v4
         with:
-          name: rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}
+          name: rust-emulas-${{ matrix.BUILD_TARGET }}
           path: dist/*.zip
           if-no-files-found: error
 
   release:
     if: github.ref_name == 'main'
     needs:
-      - extract-version
       - build
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -90,8 +88,44 @@ jobs:
         with:
           path: ./artifacts
 
+      - name: Install Cargo Release
+        if: needs.build.cache-cargo.outputs.cache-hit != 'true'
+        run: cargo install cargo-release --locked
+
+      - name: Set Git User Info
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-runner@github.com"
+
+      - name: Bump de versão automático
+        shell: bash
+        run: |
+          MSG="$(git log -1 --pretty=%B | tr -d '\n')"
+          echo "Último commit: $MSG"
+
+          if echo "$MSG" | grep -qiE '^feat:'; then
+            echo "Detected feature -> minor bump"
+            cargo release minor --no-confirm --execute --no-publish
+          elif echo "$MSG" | grep -qiE '^fix:'; then
+            echo "Detected fix -> patch bump"
+            cargo release patch --no-confirm --execute --no-publish
+          elif echo "$MSG" | grep -qiE '^breaking'; then
+            echo "Detected breaking change -> major bump"
+            cargo release major --no-confirm --execute --no-publish
+          else
+            echo "Defaulting to patch bump"
+            cargo release patch --no-confirm --execute --no-publish
+          fi
+
+      - name: Extract version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(cargo pkgid | sed 's/.*#//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
       - name: Publish built binary to GitHub releases
         run: |
-          gh release create ${{ needs.extract-version.outputs.version }} artifacts/*/*.zip --generate-notes
+          gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*-${{ steps.get_version.outputs.version }}.zip --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}

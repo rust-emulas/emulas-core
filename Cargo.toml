@@ -1,7 +1,19 @@
 [package]
+description = "Emulador NES feito em Rust"
 edition = "2024"
+license = "MIT"
 name = "rust-emulas"
-version = "0.3.0"
+readme = "README.md"
+repository = "https://github.com/wesleyholiveira/rust-emulas/"
+version = "0.3.6"
+
+[profile.release]
+lto = true
 
 [dependencies]
+bitflags = "2.9.0"
+cargo-release = "0.25.18"
 sdl3-sys = {version = "0.4.7", features = ["build-from-source"]}
+
+[build-dependencies]
+vcpkg = {version = "0.2"}
