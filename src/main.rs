@@ -24,15 +24,6 @@ fn main() {
         });
     }
 
-    unsafe {
-        let video_driver = SDL_GetCurrentVideoDriver();
-        let video_driver_str = CStr::from_ptr(video_driver).to_str().unwrap();
-
-        println!("Current video driver: {}", video_driver_str);
-        SDL_SetHint(SDL_HINT_VIDEO_DRIVER, video_driver);
-        SDL_Init(SDL_INIT_VIDEO);
-    }
-
     // Create window
     let title = CString::new("SDL3 Bindgen Example").unwrap();
     let window = unsafe { SDL_CreateWindow(title.as_ptr(), 800, 600, SDL_WINDOW_OPENGL) };

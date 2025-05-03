@@ -1,12 +1,11 @@
-
 use crate::cpu::interpreter::flags::StatusFlags;
 
 pub struct Interpreter {
-    pub pc: u16,          // Program Counter
-    pub sp: u8,           // Stack Pointer
-    pub a: u8,            // Accumulator
-    pub x: u8,            // X Register
-    pub y: u8,            // Y Register
+    pub pc: u16,             // Program Counter
+    pub sp: u8,              // Stack Pointer
+    pub a: u8,               // Accumulator
+    pub x: u8,               // X Register
+    pub y: u8,               // Y Register
     pub status: StatusFlags, // Status Register
 }
 
@@ -31,13 +30,10 @@ impl Interpreter {
         self.status = StatusFlags::empty();
     }
 
-    pub fn irq(&mut self) {
-        
-    }
+    pub fn irq(&mut self) {}
 }
 
 impl Interpreter {
-
     // Clear the provided flags in the status register
     pub fn clear_flags(&mut self, flags: StatusFlags) {
         self.status.remove(flags);
@@ -59,13 +55,12 @@ impl Interpreter {
 
         value
     }
-    
+
     // Set the accumulator register and update the status flags accordingly
     pub fn set_a(&mut self, value: u8) {
         self.a = self.set_register_flags(value);
     }
 
-    
     // Set the x register and update the status flags accordingly
     pub fn set_x(&mut self, value: u8) {
         self.x = self.set_register_flags(value);
@@ -81,7 +76,5 @@ impl Interpreter {
 impl Interpreter {
     // LDA - Load Accumulator
     // Load a value into the accumulator and set the zero and negative flags accordingly
-    pub fn lda(&mut self) {
-        
-    }
+    pub fn lda(&mut self) {}
 }
