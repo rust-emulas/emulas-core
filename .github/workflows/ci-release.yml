@@ -75,7 +75,7 @@ jobs:
         if: github.ref_name == 'main'
         uses: vimtor/action-zip@v1
         with:
-          files: dist/*
+          files: dist/
           dest: dist/rust-emulas-${{ matrix.BUILD_TARGET }}-${{ needs.extract-version.outputs.version }}.zip
 
       - name: Upload artifact
