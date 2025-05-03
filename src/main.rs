@@ -20,6 +20,8 @@ use sdl3_sys::{
     }
 };
 
+pub mod cpu;
+
 fn main() {
     unsafe {
         std::env::set_var("SDL_VIDEODRIVER", "windows");
