@@ -32,7 +32,7 @@ jobs:
           - os: ubuntu-latest
             BUILD_TARGET: x86_64-unknown-linux-gnu
             EXT: ""
-          - os: windows-latest
+          - os: windows-2025
             BUILD_TARGET: x86_64-pc-windows-msvc
             EXT: ".exe"
 
@@ -60,28 +60,6 @@ jobs:
           libxrandr-dev libxcursor-dev libxfixes-dev libxi-dev libxss-dev libxtst-dev \
           libxkbcommon-dev libdrm-dev libgbm-dev libgl1-mesa-dev libgles2-mesa-dev \
           libegl1-mesa-dev libdbus-1-dev libibus-1.0-dev libudev-dev
-
-      - name: Install SDL Windows dependencies
-        if: matrix.os == 'windows-latest'
-        shell: pwsh
-        run: |
-          Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_BuildTools.exe" -OutFile "vs_BuildTools.exe"
-
-          Start-Process .\vs_BuildTools.exe `
-            -ArgumentList @(
-              "--quiet",
-              "--wait",
-              "--norestart",
-              "--nocache",
-              "--add", "Microsoft.VisualStudio.Workload.VCTools",
-              "--add", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-              "--add", "Microsoft.VisualStudio.Component.VC.CMake.Project",
-              "--add", "Microsoft.VisualStudio.Component.Windows11SDK.22621",
-              "--add", "Microsoft.VisualStudio.Component.VC.ATLMFC",
-              "--add", "Microsoft.VisualStudio.Component.VC.CoreBuildTools",
-              "--includeRecommended"
-            ) `
-            -Wait
 
       - name: Build project
         run: cargo build --release --target ${{ matrix.BUILD_TARGET }}
