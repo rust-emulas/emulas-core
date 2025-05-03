@@ -68,6 +68,7 @@ jobs:
         if: github.ref_name == 'main'
         run: |
           mkdir -p dist
+          cp -R target/ dist/
           cp target/${{ matrix.BUILD_TARGET }}/release/rust-emulas${{ matrix.EXT }} dist/rust-emulas-${{ matrix.BUILD_TARGET }}${{ matrix.EXT }}
 
       - name: Zip binary
