@@ -27,7 +27,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest, windows-2025]
         include:
           - os: ubuntu-latest
             BUILD_TARGET: x86_64-unknown-linux-gnu
