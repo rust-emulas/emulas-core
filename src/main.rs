@@ -1,64 +1,31 @@
+pub mod rom;
 
-mod memory;
-
-use memory::bus::Bus;
-
-use std::ops::Not;
-
-use std::{
-	ffi::{CStr, CString},
-	mem::zeroed,
-};
-
-use sdl3_sys::{
-    error::SDL_GetError,
-    init::{SDL_INIT_VIDEO, SDL_Init, SDL_Quit},
-    video::{SDL_CreateWindow, SDL_DestroyWindow, SDL_WINDOW_OPENGL},
-    events::{
-	SDL_PollEvent,
-	SDL_EVENT_QUIT,
-    }
-};
-
-pub mod cpu;
+use rom::header::{ROMHeader, INES_1_0Header};
 
 fn main() {
-    unsafe {
-        std::env::set_var("SDL_VIDEODRIVER", "windows");
-    }
+    // Example 16-byte iNES 1.0 header
+    let ines_1_0_data: [u8; 16] = [
+        b'N', b'E', b'S', 0x1A, // Magic
+        2,    // PRG-ROM size (2 * 16KB = 32KB)
+        1,    // CHR-ROM size (1 * 8KB = 8KB)
+        0x10, // Flags 6
+        0x00, // Flags 7
+        0x01, // PRG-RAM size (1 * 8KB)
+        0x00, // Flags 9 (TV system)
+        0x00, // Flags 10
+        0x00, 0x00, 0x00, 0x00, // Unused
+        0x00, // Padding for 16 bytes
+    ];
 
-    if unsafe { SDL_Init(SDL_INIT_VIDEO).not() } {
-        panic!("SDL_Init failed: {:?}", unsafe {
-            CStr::from_ptr(SDL_GetError())
-        });
-    }
+    // Parse as iNES 1.0
+    let rom_header: ROMHeader<INES_1_0Header> = ROMHeader::new(&ines_1_0_data);
 
-    // Create window
-    let title = CString::new("SDL3 Bindgen Example").unwrap();
-    let window = unsafe { SDL_CreateWindow(title.as_ptr(), 800, 600, SDL_WINDOW_OPENGL) };
-
-    if window.is_null() {
-        panic!(
-            "SDL_CreateWindow failed: {:?}",
-            unsafe {CStr::from_ptr(SDL_GetError()) }
-        );
-    }
-
-    // Main loop
-    let mut event = unsafe { zeroed() };
-    let mut running = true;
-    while running {
-        while unsafe {SDL_PollEvent(&mut event).not()} {
-            if unsafe {event.r#type == SDL_EVENT_QUIT.into()} {
-                running = false;
-            }
-        }
-
-        // Add rendering here
-    }
-
-    // Cleanup
-    unsafe {SDL_DestroyWindow(window)};
-    unsafe {SDL_Quit()};
-
+    println!("=== Parsed iNES 1.0 Header ===");
+    println!("Magic: {:?}", rom_header.header.base.name);
+    println!("PRG-ROM size: {} x 16KB", rom_header.header.base.prg_count);
+    println!("CHR-ROM size: {} x 8KB", rom_header.header.base.chr_count);
+    println!("Mapper bytes: {:?}", rom_header.header.mapper);
+    println!("PRG-RAM size: {} x 8KB", rom_header.header.prg_ram_size);
+    println!("TV system: {:?}", rom_header.header.tv_system);
+    println!("Unused: {:?}", rom_header.header.unused);
 }
