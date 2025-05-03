@@ -37,7 +37,16 @@ rust-emula/
 
 ## Contributing
 
-Contributions are welcome! Please fork the repository and submit a pull request with your changes.
+When making a commit, ensure that the version of the package in `Cargo.toml` is updated if necessary. Every commit should reflect the correct version of the package to maintain consistency and traceability.
+
+Steps to verify:
+1. Open the `Cargo.toml` file.
+2. Check the `[package]` section for the `version` field.
+3. Update the version if your changes introduce significant updates or fixes.
+4. Include the updated `Cargo.toml` in your commit.
+
+This ensures that the project versioning remains accurate and aligned with the changes made.
+
 
 ## License
 
