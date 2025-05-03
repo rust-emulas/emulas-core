@@ -9,3 +9,6 @@ lto = true
 [dependencies]
 bitflags = "2.9.0"
 sdl3-sys = {version = "0.4.7", features = ["build-from-source"]}
+
+[build-dependencies]
+vcpkg = {version = "0.2"}
