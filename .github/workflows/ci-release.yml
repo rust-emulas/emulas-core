@@ -82,6 +82,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Faz o checkout completo do repositório
+
+      - name: Criar branch de release
+        run: |
+          git checkout -b feature/${{ github.sha}}
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
