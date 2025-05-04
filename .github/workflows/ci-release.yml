@@ -132,6 +132,6 @@ jobs:
 
       - name: Publish built binary to GitHub releases
         run: |
-          gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*-${{ steps.get_version.outputs.version }}.zip --generate-notes
+          gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*.zip --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
