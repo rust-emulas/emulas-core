@@ -135,3 +135,7 @@ jobs:
           gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*.zip --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Clear branch
+        run: |
+          git checkout main && git branch -D feature/${{ github.sha}}

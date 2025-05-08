@@ -1,6 +1,3 @@
-mod cpu;
-mod memory;
-
 use std::ops::Not;
 
 use std::{

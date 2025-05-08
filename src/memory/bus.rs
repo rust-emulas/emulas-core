@@ -9,6 +9,14 @@ pub struct Bus {
 }
 
 impl Bus {
+    pub fn new() -> Self {
+        Bus {
+            ram: [0; RAM_SIZE],
+            ppu: [0; PPU_SIZE],
+            prgrom: [0; PGROM_SIZE],
+        }
+    }
+
     #[inline(always)]
     pub fn write(&mut self, addr: u16, value: u8) {
         match addr {
