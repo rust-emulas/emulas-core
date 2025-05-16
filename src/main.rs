@@ -1,5 +1,6 @@
 mod cpu;
 mod memory;
+pub mod sys;
 
 use std::ops::Not;
 
@@ -15,7 +16,16 @@ use sdl3_sys::{
     video::{SDL_CreateWindow, SDL_DestroyWindow, SDL_WINDOW_OPENGL},
 };
 
+use sys::interfaces::ROMFile;
+use sys::interfaces::ROMFs;
+use sys::linux::rom_file::ROMFileLinux;
+
 fn main() {
+    let path = String::from("foo/bar/room.nes");
+    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path);
+
+    let ines_1_0_header = rom_file.rom.read_rom_header(16);
+
     if unsafe { SDL_Init(SDL_INIT_VIDEO).not() } {
         panic!("SDL_Init failed: {:?}", unsafe {
             CStr::from_ptr(SDL_GetError())
