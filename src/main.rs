@@ -21,10 +21,13 @@ use sys::interfaces::ROMFs;
 use sys::linux::rom_file::ROMFileLinux;
 
 fn main() {
-    let path = String::from("foo/bar/room.nes");
-    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path);
+    let path = String::from("./roms_to_test/Super Mario Bross (E)/Super Mario Bros (E).nes");
+
+    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path).expect("Deu ruim na hora de abrir ");
 
     let ines_1_0_header = rom_file.rom.read_rom_header(16);
+
+    println!("{:?}", ines_1_0_header);
 
     if unsafe { SDL_Init(SDL_INIT_VIDEO).not() } {
         panic!("SDL_Init failed: {:?}", unsafe {
@@ -46,7 +49,7 @@ fn main() {
     let mut event = unsafe { zeroed() };
     let mut running = true;
     while running {
-        while unsafe { SDL_PollEvent(&mut event).not() } {
+        while unsafe { SDL_PollEvent(&mut event) } {
             if unsafe { event.r#type == SDL_EVENT_QUIT.into() } {
                 running = false;
             }

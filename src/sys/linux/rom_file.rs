@@ -1,7 +1,16 @@
-use crate::sys::interfaces::ROMFs;
+use crate::sys::{
+    interfaces::{
+        ROMFs,
+        Extension,
+    },
+    errors::FileErrors,
+    errors::ErrorOnRead,
+};
 
 use std::fs::File;
 use std::io::Read;
+use std::io;
+use std::path::Path;
 
 pub struct ROMFileLinux {
     pub rom_path: String,
@@ -10,27 +19,65 @@ pub struct ROMFileLinux {
 }
 
 impl ROMFs for ROMFileLinux {
-    fn new(rom_path: String) -> Self {
+    fn new(rom_path: String) -> Result<Self, FileErrors> {
         let mut rom = ROMFileLinux {
             rom_path: rom_path.clone(),
             content: Vec::new(),
             size: 0,
         };
 
-        rom.content = Self::read_file(&rom_path);
-        rom.size = rom.content.len();
+        match Self::validate_file(&rom_path) {
+            Ok(_) => {
+                rom.content = Self::read_file(&rom_path)?;
+                rom.size = rom.content.len();
 
-        rom
+                Ok(rom)
+            }
+            Err(err) => Err(FileErrors::InvalidROMFile),
+        }
+
     }
 
-    fn read_file(rom_path: &str) -> Vec<u8> {
-        let mut buffer = Vec::new();
-        let mut f = File::open(rom_path).expect("Erro when tried to open ROM file!");
+    fn validate_file(rom_path: &str) -> Result<(), FileErrors> {
+        let rom_path = Path::new(rom_path);
+        let mut valid = true;
 
-        match f.read_to_end(&mut buffer) {
-            Ok(_) => buffer.clone(),
-            Err(_) => panic!("Erro when tried to read ROM file!"),
+        // validate if the path is actualy a file 
+        if !rom_path.is_file() {
+            valid = false
         }
+
+        // validate the file extension
+        match rom_path.extension() {
+            None => valid = false,
+            Some(extension) => {
+                if Extension::from_str(extension.to_str().unwrap_or("")) != Extension::NES {
+                    valid = false;
+                }
+            }
+        }
+
+        if valid {
+            Ok(())
+        } else {
+            Err(FileErrors::InvalidROMFile)
+        }
+    }
+
+    fn read_file(rom_path: &str) -> Result<Vec<u8>, FileErrors> {
+        let mut buffer = Vec::new();
+
+        match File::open(rom_path) {
+            Ok(mut f) => {
+                // erro ao ler
+                match f.read_to_end(&mut buffer) {
+                    Ok(_) => Ok(buffer),
+                    Err(_) => Err(FileErrors::ErrorOnRead),
+                }
+            }
+            Err(_) => Err(FileErrors::ErrorOnOpen),
+        }
+
     }
 
     fn read_rom_header(&self, header_size: usize) -> Vec<u8> {
