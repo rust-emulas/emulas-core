@@ -1,28 +1,4 @@
-use super::errors::{FileErrors, InvalidROMFile};
-
-#[derive(Debug)]
-pub enum Extension {
-    NES,
-    InvalidExtension,
-}
-
-impl Extension {
-    pub fn from_str(ext: &str) -> Self {
-        match ext.to_uppercase().as_str() {
-            "NES" => Extension::NES,
-            _ => Extension::InvalidExtension,
-        }
-    }
-}
-
-impl PartialEq for Extension {
-   fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Extension::NES, Extension::NES) => true,
-            _ => false,
-        }
-    }
-}
+use super::errors::FileErrors;
 
 pub struct ROMFile<T> {
     pub rom: T,

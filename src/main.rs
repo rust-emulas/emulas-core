@@ -23,7 +23,7 @@ use sys::linux::rom_file::ROMFileLinux;
 fn main() {
     let path = String::from("./roms_to_test/Super Mario Bross (E)/Super Mario Bros (E).nes");
 
-    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path).expect("Deu ruim na hora de abrir ");
+    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path).expect("Error getting ROM file!");
 
     let ines_1_0_header = rom_file.rom.read_rom_header(16);
 

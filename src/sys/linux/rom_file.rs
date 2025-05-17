@@ -1,10 +1,9 @@
 use crate::sys::{
-    interfaces::{
-        ROMFs,
+    interfaces::ROMFs,
+    errors::{
+        FileErrors,
         Extension,
     },
-    errors::FileErrors,
-    errors::ErrorOnRead,
 };
 
 use std::fs::File;
@@ -51,7 +50,7 @@ impl ROMFs for ROMFileLinux {
         match rom_path.extension() {
             None => valid = false,
             Some(extension) => {
-                if Extension::from_str(extension.to_str().unwrap_or("")) != Extension::NES {
+                if Extension::from_str(extension.to_str().unwrap_or("")) == Extension::InvalidExtension {
                     valid = false;
                 }
             }
