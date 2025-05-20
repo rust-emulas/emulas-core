@@ -14,6 +14,7 @@ lto = true
 bitflags = "2.9.0"
 cargo-release = "0.25.18"
 sdl3-sys = {version = "0.4.7", features = ["build-from-source"]}
+tempfile = "3.3.0"
 
 [build-dependencies]
 vcpkg = {version = "0.2"}

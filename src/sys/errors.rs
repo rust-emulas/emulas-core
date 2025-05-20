@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum Extension {
     NES,
     InvalidExtension,
@@ -15,42 +15,31 @@ impl Extension {
     }
 }
 
-impl PartialEq for Extension {
-   fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Extension::NES, Extension::NES) => true,
-            (Extension::InvalidExtension, Extension::InvalidExtension) => true,
-            _ => false,
-        }
-    }
-}
-
-pub struct InvalidROMFile;
+pub struct ErrorInvalidROMFile;
+pub struct ErrorInvalidExtension;
+pub struct ErrorInvalidRange;
 pub struct ErrorOpeningROMFile;
 pub struct ErrorReadingROMFile;
 
-// TODO improve error names
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum FileErrors {
-    InvalidROMFile,
+    ErrorInvalidROMFile,
+    ErrorInvalidExtension,
+    ErrorInvalidRange,
+    ErrorInvalidFileSize,
     ErrorOpeningROMFile,
     ErrorReadingROMFile,
 }
 
-trait FileErrorMessage {}
-
-impl fmt::Display for dyn FileErrorMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "File invalid as NES ROM!")
+impl std::fmt::Display for FileErrors {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            FileErrors::ErrorInvalidROMFile => write!(f, "File is not a valid ROM file."),
+            FileErrors::ErrorInvalidExtension => write!(f, "File has an invalid extension."),
+            FileErrors::ErrorInvalidRange => write!(f, "Invalid size for ROM content"),
+            FileErrors::ErrorInvalidFileSize => write!(f, "File has a invalid size for ROM content"),
+            FileErrors::ErrorOpeningROMFile => write!(f, "Error when try to open file."),
+            FileErrors::ErrorReadingROMFile => write!(f, "Error when try to read file."),
+        }
     }
 }
-
-impl fmt::Debug for dyn FileErrorMessage {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{{ File: {} at line {} }}", file!(), line!())
-    }
-}
-
-impl FileErrorMessage for InvalidROMFile {}
-impl FileErrorMessage for ErrorOpeningROMFile {}
-impl FileErrorMessage for ErrorReadingROMFile {}

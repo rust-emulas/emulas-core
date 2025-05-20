@@ -16,19 +16,7 @@ use sdl3_sys::{
     video::{SDL_CreateWindow, SDL_DestroyWindow, SDL_WINDOW_OPENGL},
 };
 
-use sys::interfaces::ROMFile;
-use sys::interfaces::ROMFs;
-use sys::linux::rom_file::ROMFileLinux;
-
 fn main() {
-    let path = String::from("./roms_to_test/Super Mario Bross (E)/Super Mario Bros (E).nes");
-
-    let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(path).expect("Error getting ROM file!");
-
-    let ines_1_0_header = rom_file.rom.read_rom_header(16);
-
-    println!("{:?}", ines_1_0_header);
-
     if unsafe { SDL_Init(SDL_INIT_VIDEO).not() } {
         panic!("SDL_Init failed: {:?}", unsafe {
             CStr::from_ptr(SDL_GetError())

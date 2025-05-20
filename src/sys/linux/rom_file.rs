@@ -1,66 +1,49 @@
 use crate::sys::{
+    errors::{Extension, FileErrors},
     interfaces::ROMFs,
-    errors::{
-        FileErrors,
-        Extension,
-    },
 };
 
 use std::fs::File;
-use std::io::Read;
 use std::io;
+use std::io::Read;
 use std::path::Path;
 
+const DEFAULT_NES_ROM_HEADER: [u8; 4] = [78, 69, 83, 26]; // [N, E, S, 1A]
+
+#[derive(Debug)]
 pub struct ROMFileLinux {
-    pub rom_path: String,
-    pub content: Vec<u8>,
-    pub size: usize,
+    rom_path: String,
+    content: Vec<u8>,
 }
 
 impl ROMFs for ROMFileLinux {
     fn new(rom_path: String) -> Result<Self, FileErrors> {
-        let mut rom = ROMFileLinux {
-            rom_path: rom_path.clone(),
-            content: Vec::new(),
-            size: 0,
-        };
+        Self::validate_file(&rom_path)?;
 
-        match Self::validate_file(&rom_path) {
-            Ok(_) => {
-                rom.content = Self::read_file(&rom_path)?;
-                rom.size = rom.content.len();
+        let content = Self::read_file(&rom_path)?;
 
-                Ok(rom)
-            }
-            Err(err) => Err(FileErrors::InvalidROMFile),
-        }
-
+        Ok(ROMFileLinux { rom_path: rom_path, content: content})
     }
 
     fn validate_file(rom_path: &str) -> Result<(), FileErrors> {
         let rom_path = Path::new(rom_path);
-        let mut valid = true;
 
-        // validate if the path is actualy a file 
         if !rom_path.is_file() {
-            valid = false
+            return Err(FileErrors::ErrorInvalidROMFile);
         }
 
-        // validate the file extension
         match rom_path.extension() {
-            None => valid = false,
+            None => return Err(FileErrors::ErrorInvalidExtension),
             Some(extension) => {
-                if Extension::from_str(extension.to_str().unwrap_or("")) == Extension::InvalidExtension {
-                    valid = false;
+                let extension = Extension::from_str(extension.to_str().unwrap_or(""));
+
+                if extension == Extension::InvalidExtension {
+                    return Err(FileErrors::ErrorInvalidExtension);
                 }
             }
         }
 
-        if valid {
-            Ok(())
-        } else {
-            Err(FileErrors::InvalidROMFile)
-        }
+        Ok(())
     }
 
     fn read_file(rom_path: &str) -> Result<Vec<u8>, FileErrors> {
@@ -68,33 +51,32 @@ impl ROMFs for ROMFileLinux {
 
         match File::open(rom_path) {
             Ok(mut f) => {
-                // erro ao ler
                 match f.read_to_end(&mut buffer) {
-                    Ok(_) => Ok(buffer),
-                    Err(_) => Err(FileErrors::ErrorOnRead),
+                    Ok(_) => {
+                        if buffer.len() <= 16 {
+                            Err(FileErrors::ErrorInvalidFileSize)
+                        } else if buffer[0..4] != DEFAULT_NES_ROM_HEADER {
+                            Err(FileErrors::ErrorInvalidROMFile)
+                        } else {
+                            Ok(buffer)
+                        }
+                    }
+                    Err(_) => Err(FileErrors::ErrorReadingROMFile),
                 }
             }
-            Err(_) => Err(FileErrors::ErrorOnOpen),
+            Err(_) => Err(FileErrors::ErrorOpeningROMFile),
         }
-
     }
 
-    fn read_rom_header(&self, header_size: usize) -> Vec<u8> {
-        let mut buf: Vec<u8> = Vec::new();
-
-        for b in &self.content[0..header_size] {
-            buf.push(*b);
-        }
-
-        buf.clone()
+    fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors> {
+        self.content.get(offset..offset + size).ok_or(FileErrors::ErrorInvalidRange)
     }
 
-    fn read_rom_content(&self) -> Vec<u8> {
-        self.content[0..self.size].to_vec()
+    fn path(&self) -> &str {
+        &self.rom_path
     }
 
-    fn read_exact_at(&self, offset: usize, size: usize) -> Vec<u8> {
-        self.content[offset..size].to_vec()
+    fn size(&self) -> usize {
+        self.content.len()
     }
 }
-
