@@ -59,7 +59,7 @@ mod tests {
 
         let file_path = file_path.unwrap_or("valid.nes");
         let content = content.unwrap_or(&[
-            78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            b'N', b'E', b'S', 0x1A, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
         ]);
 
         let valid_path = dir_path.join(file_path);
@@ -82,7 +82,10 @@ mod tests {
 
     #[test]
     fn test_read_invalid_rom_size() {
-        let dir = setup_test_files(Some("invalid_size.nes"), Some(&[78, 69, 83, 26, 2, 1, 1]));
+        let dir = setup_test_files(
+            Some("invalid_size.nes"),
+            Some(&[b'N', b'E', b'S', 0x1A, 2, 1, 1]),
+        );
         let invalid_size_path = dir
             .path()
             .join("invalid_size.nes")
@@ -120,7 +123,7 @@ mod tests {
         let dir = setup_test_files(
             Some("invalid_extension.xxx"),
             Some(&[
-                78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                b'N', b'E', b'S', 0x1A, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
             ]),
         );
         let invalid_extension_path = dir
@@ -151,7 +154,7 @@ mod tests {
 
         let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
-        let valid_header: [u8; 16] = [78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let valid_header: [u8; 16] = [b'N', b'E', b'S', 0x1A, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         assert_eq!(rom_file.read_rom_header().unwrap(), valid_header);
     }
 
@@ -165,11 +168,11 @@ mod tests {
         let content = rom_file.read_rom_content().unwrap();
 
         assert_eq!(content.len(), 20);
-        assert_eq!(&content[0..4], &[78, 69, 83, 26]);
+        assert_eq!(&content[0..4], &[b'N', b'E', b'S', 0x1A]);
         assert_eq!(
             &content,
             &[
-                78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+                b'N', b'E', b'S', 0x1A, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
             ]
         );
     }
@@ -185,11 +188,14 @@ mod tests {
 
         assert_eq!(rom_file.read_exact_at(0, 20).unwrap().len(), 20);
 
-        assert_eq!(rom_file.read_exact_at(0, 4).unwrap(), &[78, 69, 83, 26]);
+        assert_eq!(
+            rom_file.read_exact_at(0, 4).unwrap(),
+            &[b'N', b'E', b'S', 0x1A]
+        );
 
         assert_eq!(
             rom_file.read_exact_at(0, 16).unwrap(),
-            &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+            &[b'N', b'E', b'S', 0x1A, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
         );
 
         assert_eq!(

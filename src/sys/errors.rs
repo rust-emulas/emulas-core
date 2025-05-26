@@ -1,5 +1,3 @@
-use std::fmt;
-
 #[derive(Debug, PartialEq)]
 pub enum Extension {
     Nes,
