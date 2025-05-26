@@ -2,14 +2,14 @@ use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub enum Extension {
-    NES,
+    Nes,
     InvalidExtension,
 }
 
 impl Extension {
     pub fn from_str(ext: &str) -> Self {
         match ext.to_uppercase().as_str() {
-            "NES" => Extension::NES,
+            "NES" => Extension::Nes,
             _ => Extension::InvalidExtension,
         }
     }
@@ -37,7 +37,9 @@ impl std::fmt::Display for FileErrors {
             FileErrors::ErrorInvalidROMFile => write!(f, "File is not a valid ROM file."),
             FileErrors::ErrorInvalidExtension => write!(f, "File has an invalid extension."),
             FileErrors::ErrorInvalidRange => write!(f, "Invalid size for ROM content"),
-            FileErrors::ErrorInvalidFileSize => write!(f, "File has a invalid size for ROM content"),
+            FileErrors::ErrorInvalidFileSize => {
+                write!(f, "File has a invalid size for ROM content")
+            }
             FileErrors::ErrorOpeningROMFile => write!(f, "Error when try to open file."),
             FileErrors::ErrorReadingROMFile => write!(f, "Error when try to read file."),
         }

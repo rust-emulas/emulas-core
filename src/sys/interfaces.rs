@@ -6,7 +6,9 @@ pub struct ROMFile<T> {
 }
 
 pub trait ROMFs {
-    fn new(rom_path: String) -> Result<Self, FileErrors> where Self: Sized;
+    fn new(rom_path: String) -> Result<Self, FileErrors>
+    where
+        Self: Sized;
     fn validate_file(rom_path: &str) -> Result<(), FileErrors>;
     fn read_file(rom_path: &str) -> Result<Vec<u8>, FileErrors>;
     fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors>;
@@ -44,22 +46,21 @@ impl<T: ROMFs> ROMFile<T> {
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
     use std::fs::File;
     use std::io::Write;
+    use tempfile::TempDir;
 
     use super::*;
-    use crate::sys::{
-        errors::FileErrors,
-        linux::rom_file::ROMFileLinux,
-    };
+    use crate::sys::{errors::FileErrors, rom_file::ROM};
 
     fn setup_test_files(file_path: Option<&str>, content: Option<&[u8]>) -> TempDir {
         let dir = TempDir::new().unwrap();
         let dir_path = dir.path();
 
         let file_path = file_path.unwrap_or("valid.nes");
-        let content = content.unwrap_or(&[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        let content = content.unwrap_or(&[
+            78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        ]);
 
         let valid_path = dir_path.join(file_path);
         let mut valid_file = File::create(valid_path).unwrap();
@@ -74,7 +75,7 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
         assert_eq!(rom_file.rom.size(), 20);
     }
@@ -82,8 +83,13 @@ mod tests {
     #[test]
     fn test_read_invalid_rom_size() {
         let dir = setup_test_files(Some("invalid_size.nes"), Some(&[78, 69, 83, 26, 2, 1, 1]));
-        let invalid_size_path = dir.path().join("invalid_size.nes").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_size_path);
+        let invalid_size_path = dir
+            .path()
+            .join("invalid_size.nes")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let rom_file: Result<ROMFile<ROM>, FileErrors> = ROMFile::new(invalid_size_path);
 
         assert!(rom_file.is_err());
         assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidFileSize);
@@ -91,9 +97,19 @@ mod tests {
 
     #[test]
     fn test_read_invalid_rom_header() {
-        let dir = setup_test_files(Some("invalid_header.nes"), Some(&[78, 78, 78, 78, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-        let invalid_header_path = dir.path().join("invalid_header.nes").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_header_path);
+        let dir = setup_test_files(
+            Some("invalid_header.nes"),
+            Some(&[
+                78, 78, 78, 78, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ]),
+        );
+        let invalid_header_path = dir
+            .path()
+            .join("invalid_header.nes")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let rom_file: Result<ROMFile<ROM>, FileErrors> = ROMFile::new(invalid_header_path);
 
         assert!(rom_file.is_err());
         assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidROMFile);
@@ -101,9 +117,19 @@ mod tests {
 
     #[test]
     fn test_read_invalid_rom_extension() {
-        let dir = setup_test_files(Some("invalid_extension.xxx"), Some(&[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-        let invalid_extension_path = dir.path().join("invalid_extension.xxx").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_extension_path);
+        let dir = setup_test_files(
+            Some("invalid_extension.xxx"),
+            Some(&[
+                78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            ]),
+        );
+        let invalid_extension_path = dir
+            .path()
+            .join("invalid_extension.xxx")
+            .to_str()
+            .unwrap()
+            .to_string();
+        let rom_file: Result<ROMFile<ROM>, FileErrors> = ROMFile::new(invalid_extension_path);
 
         assert!(rom_file.is_err());
         assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidExtension);
@@ -112,7 +138,7 @@ mod tests {
     #[test]
     fn test_read_non_existent_rom_file() {
         let non_existent_path = String::from("unexisting_file.nes");
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(non_existent_path);
+        let rom_file: Result<ROMFile<ROM>, FileErrors> = ROMFile::new(non_existent_path);
 
         assert!(rom_file.is_err());
         assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidROMFile);
@@ -123,7 +149,7 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
         let valid_header: [u8; 16] = [78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
         assert_eq!(rom_file.read_rom_header().unwrap(), valid_header);
@@ -134,13 +160,18 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
         let content = rom_file.read_rom_content().unwrap();
 
         assert_eq!(content.len(), 20);
         assert_eq!(&content[0..4], &[78, 69, 83, 26]);
-        assert_eq!(&content, &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            &content,
+            &[
+                78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+            ]
+        );
     }
 
     #[test]
@@ -148,7 +179,7 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
         assert_eq!(rom_file.read_exact_at(0, 0).unwrap(), &[]);
 
@@ -156,9 +187,15 @@ mod tests {
 
         assert_eq!(rom_file.read_exact_at(0, 4).unwrap(), &[78, 69, 83, 26]);
 
-        assert_eq!(rom_file.read_exact_at(0, 16).unwrap(), &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            rom_file.read_exact_at(0, 16).unwrap(),
+            &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        );
 
-        assert_eq!(rom_file.read_exact_at(20, 1).unwrap_err(), FileErrors::ErrorInvalidRange);
+        assert_eq!(
+            rom_file.read_exact_at(20, 1).unwrap_err(),
+            FileErrors::ErrorInvalidRange
+        );
     }
 
     #[test]
@@ -166,7 +203,7 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path.clone()).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path.clone()).unwrap();
 
         assert_eq!(rom_file.path(), &valid_path);
     }
@@ -176,7 +213,7 @@ mod tests {
         let dir = setup_test_files(None, None);
         let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+        let rom_file: ROMFile<ROM> = ROMFile::new(valid_path).unwrap();
 
         assert_eq!(rom_file.size(), 20);
     }
