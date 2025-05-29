@@ -1,11 +1,11 @@
-const RAM_SIZE: usize = 2048; // 2 KiB = 0x07FF - 0x0000 + 1 = Max 8 KiB
-const PPU_SIZE: usize = 8; // 8 KiB = 0x3FFF - 0x2000 + 1 = Max 8 bytes
-const PGROM_SIZE: usize = 32768; // 32 KiB = 0xFFFF - 0x8000 + 1
+pub const RAM_SIZE: usize = 2048; // 2 KiB = 0x07FF - 0x0000 + 1 = Max 8 KiB
+pub const PPU_SIZE: usize = 8192; // 8 KiB = 0x3FFF - 0x2000 + 1 = Max 8 bytes
+pub const PRG_SIZE: usize = 32768; // 32 KiB = 0xFFFF - 0x8000 + 1
 
 pub struct Bus {
     ram: [u8; RAM_SIZE],
     ppu: [u8; PPU_SIZE],
-    prgrom: [u8; PGROM_SIZE],
+    prgrom: [u8; PRG_SIZE],
 }
 
 impl Bus {
@@ -13,7 +13,7 @@ impl Bus {
         Bus {
             ram: [0; RAM_SIZE],
             ppu: [0; PPU_SIZE],
-            prgrom: [0; PGROM_SIZE],
+            prgrom: [0; PRG_SIZE],
         }
     }
 
