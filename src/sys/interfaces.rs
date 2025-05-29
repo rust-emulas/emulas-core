@@ -118,7 +118,7 @@ mod tests {
         let data = [1, 2, 3, 4, 5];
         let path = create_temp_rom_file(&data, ".nes");
         let read = ROM::read_file(&path).unwrap();
-        assert_eq!(&read[..5], data);
+        assert_eq!(read[..5], data);
     }
 
     #[test]

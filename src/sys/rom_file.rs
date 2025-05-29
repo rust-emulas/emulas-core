@@ -124,8 +124,8 @@ impl ROM {
         }
 
         let trainer = if has_trainer { 512 } else { 0 };
-        let prg_rom = &content[prg_start..prg_end];
-        let chr_rom = &content[chr_start..chr_end];
+        let prg_rom = content[prg_start..prg_end].to_vec();
+        let chr_rom = content[chr_start..chr_end].to_vec();
 
         let mirroring = match header[6] & 0b00001001 {
             0x08 => MirroringType::FourScreen,
@@ -136,12 +136,8 @@ impl ROM {
         let mapper = ((header[7] & 0xF0) | (header[6] >> 4)) as u8;
 
         Ok(INes {
-            prg_rom: prg_rom
-                .try_into()
-                .map_err(|_| FileErrors::ErrorInvalidFileSize)?,
-            chr_rom: chr_rom
-                .try_into()
-                .map_err(|_| FileErrors::ErrorInvalidFileSize)?,
+            prg_rom,
+            chr_rom,
             trainer,
             prg_size,
             chr_size,
