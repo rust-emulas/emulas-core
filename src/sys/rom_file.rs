@@ -7,33 +7,33 @@ use crate::sys::{
     interfaces::ROMFs,
 };
 
-use super::interfaces::{INes, MirroringType};
+use super::interfaces::{HeaderBytes, INes, MirroringType};
 
-const DEFAULT_NES_ROM_HEADER: [u8; 4] = [b'N', b'E', b'S', 0x1A]; // [N, E, S, 1A]
+pub const DEFAULT_NES_ROM_HEADER: &[u8; 4] = b"NES\x1A"; // [N, E, S, 1A]
 
 #[derive(Debug)]
-pub struct ROM {
+pub struct ROM<'a> {
     pub format: INes,
-    pub(crate) rom_path: String,
+    pub(crate) rom_path: &'a Path,
     pub(crate) content: Vec<u8>,
 }
 
-impl ROMFs for ROM {
-    fn new(rom_path: String) -> Result<Self, FileErrors> {
+impl<'a> ROMFs<'a> for ROM<'a> {
+    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors> {
         Self::validate_file(&rom_path)?;
 
         let content = Self::read_file(&rom_path)?;
         let format = Self::parse_ines(&content)?;
 
         Ok(ROM {
-            rom_path,
+            rom_path: rom_path.as_ref(),
             content,
             format,
         })
     }
 
-    fn validate_file(rom_path: &str) -> Result<(), FileErrors> {
-        let rom_path = Path::new(rom_path);
+    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), FileErrors> {
+        let rom_path = Path::new(rom_path.as_ref());
 
         if !rom_path.is_file() {
             return Err(FileErrors::ErrorInvalidROMFile);
@@ -53,7 +53,7 @@ impl ROMFs for ROM {
         Ok(())
     }
 
-    fn read_file(rom_path: &str) -> Result<Vec<u8>, FileErrors> {
+    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, FileErrors> {
         let mut buffer = Vec::new();
 
         match File::open(rom_path) {
@@ -77,20 +77,16 @@ impl ROMFs for ROM {
 
         Ok(&self.content[offset..end])
     }
-    fn read_rom_header(&self) -> Result<[u8; 16], FileErrors> {
+    fn get_header(&self) -> Result<HeaderBytes, FileErrors> {
         let header = self.read_exact_at(0, 16)?;
 
-        if header.len() < 16 {
-            return Err(FileErrors::ErrorInvalidFileSize);
-        }
-
-        let mut rom_header = [0; 16];
+        let mut rom_header = HeaderBytes([0; 16]);
         rom_header.copy_from_slice(header);
 
         Ok(rom_header)
     }
-    fn path(&self) -> &str {
-        &self.rom_path
+    fn path(&self) -> impl AsRef<Path> {
+        self.rom_path
     }
 
     fn size(&self) -> usize {
@@ -98,11 +94,16 @@ impl ROMFs for ROM {
     }
 }
 
-impl ROM {
-    fn parse_ines(content: &[u8]) -> Result<INes, FileErrors> {
-        let header = &content[0..16];
-        if header.len() < 16 || &header[0..4] != DEFAULT_NES_ROM_HEADER {
+impl ROM<'_> {
+    pub fn parse_ines(content: &[u8]) -> Result<INes, FileErrors> {
+        println!("Content length: {}", content.len());
+        if content.len() < 16 {
             return Err(FileErrors::ErrorInvalidFileSize);
+        }
+
+        let header = &content[0..16];
+        if header[0..4] != *DEFAULT_NES_ROM_HEADER {
+            return Err(FileErrors::ErrorInvalidROMFile);
         }
 
         let prg_blocks = header[4] as usize;

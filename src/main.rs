@@ -1,8 +1,11 @@
+use std::path::Path;
+
 use rust_emulas::sys::interfaces::{INes, ROMFs};
 use rust_emulas::sys::rom_file::ROM;
 
 fn write_bytes(values: &[u8]) -> Result<(), rust_emulas::sys::errors::FileErrors> {
-    let rom = ROM::new("./mamaco.nes".to_string())?;
+    let path = Path::new("./mamaco.nes");
+    let rom = ROM::new(&path)?;
 
     let INes {
         prg_rom,

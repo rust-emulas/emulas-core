@@ -1530,6 +1530,7 @@ version = "0.3.6"
 dependencies = [
  "bitflags",
  "cargo-release",
+ "log",
  "sdl3-sys",
  "tempfile",
  "vcpkg",
