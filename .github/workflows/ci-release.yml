@@ -3,7 +3,7 @@ name: Build and Release
 on:
   push:
     branches:
-      - main # Executa quando você fizer push na branch principal
+      - main
       - "feature/**"
 
 jobs:
@@ -73,9 +73,8 @@ jobs:
           if-no-files-found: error
 
   release:
-    if: github.ref_name == 'main'
-    needs:
-      - build
+    if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
+    needs: build
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
@@ -83,45 +82,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Faz o checkout completo do repositório
-
-      - name: Criar branch de release
-        run: |
-          git checkout -b feature/${{ github.sha}}
+          fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: Install Cargo Release
-        if: needs.build.cache-cargo.outputs.cache-hit != 'true'
-        run: cargo install cargo-release --locked
-
       - name: Set Git User Info
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "github-runner@github.com"
-
-      - name: Bump de versão automático
-        shell: bash
-        run: |
-          MSG="$(git log -1 --pretty=%B | tr -d '\n')"
-          echo "Último commit: $MSG"
-
-          if echo "$MSG" | grep -qiE '^feat:'; then
-            echo "Detected feature -> minor bump"
-            cargo release minor --no-confirm --execute --no-publish
-          elif echo "$MSG" | grep -qiE '^fix:'; then
-            echo "Detected fix -> patch bump"
-            cargo release patch --no-confirm --execute --no-publish
-          elif echo "$MSG" | grep -qiE '^breaking'; then
-            echo "Detected breaking change -> major bump"
-            cargo release major --no-confirm --execute --no-publish
-          else
-            echo "Defaulting to patch bump"
-            cargo release patch --no-confirm --execute --no-publish
-          fi
 
       - name: Extract version
         id: get_version
@@ -136,6 +107,63 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Clear branch
+  bump:
+    if: github.ref_name == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect bump type and update Cargo.toml
+        id: bump
+        shell: bash
         run: |
-          git checkout main && git branch -D feature/${{ github.sha}}
+          MSG="$(git log -1 --pretty=%B | tr -d '\n')"
+          echo "Último commit: $MSG"
+
+          CURRENT_VERSION=$(grep '^version' Cargo.toml | head -n1 | cut -d '"' -f2)
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+          if echo "$MSG" | grep -qiE '^feat:'; then
+            ((MINOR++)); PATCH=0
+          elif echo "$MSG" | grep -qiE '^fix:'; then
+            ((PATCH++))
+          elif echo "$MSG" | grep -qiE '^breaking'; then
+            ((MAJOR++)); MINOR=0; PATCH=0
+          else
+            ((PATCH++))
+          fi
+
+          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "Nova versão: $NEW_VERSION"
+          sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Commit e push para branch temporária
+        if: contains(github.event.head_commit.message, '[skip release]')
+        run: |
+          BRANCH_NAME="feature/${{ github.sha }}"
+          git checkout -b $BRANCH_NAME
+
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@users.noreply.github.com"
+
+          git add Cargo.toml
+          git commit -m "chore: bump version to v${{ steps.bump.outputs.version }} [skip release]"
+
+          git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin $BRANCH_NAME
+
+      - name: Criar Pull Request automaticamente
+        if: contains(github.event.head_commit.message, '[skip release]')
+        run: |
+          gh auth setup-git
+          gh pr create \
+            --head "feature/${{ github.sha }}" \
+            --base "main" \
+            --title "chore: bump version to v${{ steps.bump.outputs.version }}" \
+            --body "Atualização automática de versão com base no commit: ${{ github.sha }}"
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
