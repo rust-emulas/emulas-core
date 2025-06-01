@@ -54,7 +54,6 @@ rust-emulas/
   - **interfaces.rs**: Contains traits and interfaces for system components (e.g., memory, CPU).
   - **rom_file.rs**: Handles loading and parsing of NES ROM files.
   - **mod.rs**: Integrates system components.
-- **mamaco.nes**: Example NES ROM file for testing the emulator.
 
 ## Getting Started
 

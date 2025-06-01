@@ -49,7 +49,7 @@ jobs:
 
       - name: Build Project
         run: |
-          cargo build --release --target ${{ matrix.BUILD_TARGET }}
+          cargo test && cargo build --release --target ${{ matrix.BUILD_TARGET }}
 
       - name: Rename binary
         if: github.ref_name == 'main'

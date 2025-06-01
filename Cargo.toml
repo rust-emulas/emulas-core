@@ -5,7 +5,7 @@ license = "MIT"
 name = "rust-emulas"
 readme = "README.md"
 repository = "https://github.com/wesleyholiveira/rust-emulas/"
-version = "0.3.6"
+version = "0.3.5"
 
 [profile.release]
 lto = true
@@ -13,10 +13,6 @@ opt-level = 3
 
 [dependencies]
 bitflags = "2.9.0"
-cargo-release = "0.25.18"
 log = "0.4.27"
 sdl3-sys = {version = "0.4.7", features = ["build-from-source"]}
 tempfile = "3.3.0"
-
-[build-dependencies]
-vcpkg = {version = "0.2"}
