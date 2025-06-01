@@ -1,3 +1,10 @@
+use std::{
+    ops::{Deref, DerefMut},
+    path::Path,
+};
+
+use log::info;
+
 use super::errors::FileErrors;
 
 #[derive(Debug)]
@@ -5,179 +12,372 @@ pub struct ROMFile<T> {
     rom: T,
 }
 
-pub trait ROMFs {
-    fn new(rom_path: String) -> Result<Self, FileErrors> where Self: Sized;
-    fn validate_file(rom_path: &str) -> Result<(), FileErrors>;
-    fn read_file(rom_path: &str) -> Result<Vec<u8>, FileErrors>;
+pub trait ROMFs<'a>: Sized {
+    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors>
+    where
+        Self: Sized;
+    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), FileErrors>;
+    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, FileErrors>;
     fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors>;
-    fn path(&self) -> &str;
+    fn get_header(&self) -> Result<HeaderBytes, FileErrors>;
+    fn path(&self) -> impl AsRef<Path>;
     fn size(&self) -> usize;
 }
 
-impl<T: ROMFs> ROMFile<T> {
-    pub fn new(rom_path: String) -> Result<Self, FileErrors> {
+#[derive(Debug)]
+pub struct INes {
+    pub prg_rom: Vec<u8>,
+    pub chr_rom: Vec<u8>,
+    pub trainer: usize,
+    pub prg_size: usize,
+    pub chr_size: usize,
+    pub mapper: u8,
+    pub mirroring: MirroringType,
+}
+
+impl Default for INes {
+    fn default() -> Self {
+        INes {
+            prg_rom: Vec::new(),
+            chr_rom: Vec::new(),
+            trainer: 0,
+            prg_size: 0,
+            chr_size: 0,
+            mapper: 0,
+            mirroring: MirroringType::Horizontal,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[repr(u8)]
+pub enum MirroringType {
+    Horizontal,
+    Vertical,
+    FourScreen,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct HeaderBytes(pub [u8; 16]);
+
+impl std::fmt::Display for HeaderBytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self.0)
+    }
+}
+
+impl Deref for HeaderBytes {
+    type Target = [u8; 16];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for HeaderBytes {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
+    pub fn new<'a, P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors> {
         let rom = T::new(rom_path)?;
 
         Ok(ROMFile { rom })
     }
 
-    pub fn path(&self) -> &str {
+    pub fn path(&self) -> impl AsRef<Path> {
         self.rom.path()
     }
 
     pub fn size(&self) -> usize {
+        info!("Getting ROM file size: {}", self.rom.size());
         self.rom.size()
     }
 
-    pub fn read_rom_header(&self) -> Result<&[u8], FileErrors> {
-        Ok(&self.rom.read_exact_at(0, 16)?)
-    }
-
     pub fn read_rom_content(&self) -> Result<&[u8], FileErrors> {
+        info!("Reading ROM content of size: {}", self.size());
         Ok(&self.rom.read_exact_at(0, self.size())?)
     }
 
     pub fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors> {
         Ok(&self.rom.read_exact_at(offset, size)?)
     }
+
+    pub fn get_header(&self) -> Result<HeaderBytes, FileErrors> {
+        let header = self.rom.get_header()?;
+        info!("Reading ROM header {}", header);
+
+        Ok(header)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use tempfile::TempDir;
-    use std::fs::File;
-    use std::io::Write;
-
     use super::*;
-    use crate::sys::{
-        errors::FileErrors,
-        linux::rom_file::ROMFileLinux,
+    use crate::sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM};
+    use std::{
+        fs::File,
+        io::{Seek, SeekFrom, Write},
     };
+    use tempfile::{NamedTempFile, tempdir};
 
-    fn setup_test_files(file_path: Option<&str>, content: Option<&[u8]>) -> TempDir {
-        let dir = TempDir::new().unwrap();
-        let dir_path = dir.path();
+    fn create_temp_rom_file(content: &[u8], ext: &str) -> NamedTempFile {
+        let mut file = tempfile::Builder::new()
+            .suffix(ext)
+            .tempfile()
+            .expect("failed to create temp file");
 
-        let file_path = file_path.unwrap_or("valid.nes");
-        let content = content.unwrap_or(&[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-
-        let valid_path = dir_path.join(file_path);
-        let mut valid_file = File::create(valid_path).unwrap();
-
-        valid_file.write_all(content).unwrap();
-
-        dir
+        file.write_all(content)
+            .expect("failed to write to temp file");
+        file.seek(SeekFrom::Start(0)).unwrap(); // importante para leitura posterior
+        file
     }
 
     #[test]
-    fn test_romfile_new() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
-
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
-
-        assert_eq!(rom_file.rom.size(), 20);
+    fn test_validate_file_invalid_path() {
+        let result = ROM::validate_file("nonexistent.nes");
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidROMFile)));
     }
 
     #[test]
-    fn test_read_invalid_rom_size() {
-        let dir = setup_test_files(Some("invalid_size.nes"), Some(&[78, 69, 83, 26, 2, 1, 1]));
-        let invalid_size_path = dir.path().join("invalid_size.nes").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_size_path);
-
-        assert!(rom_file.is_err());
-        assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidFileSize);
+    fn test_validate_file_invalid_extension() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.txt");
+        File::create(&file_path).unwrap();
+        let result = ROM::validate_file(&file_path);
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidExtension)));
     }
 
     #[test]
-    fn test_read_invalid_rom_header() {
-        let dir = setup_test_files(Some("invalid_header.nes"), Some(&[78, 78, 78, 78, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-        let invalid_header_path = dir.path().join("invalid_header.nes").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_header_path);
-
-        assert!(rom_file.is_err());
-        assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidROMFile);
+    fn test_read_file_success() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("test.nes");
+        let data = vec![1, 2, 3, 4];
+        {
+            let mut file = File::create(&file_path).unwrap();
+            file.write_all(&data).unwrap();
+        }
+        let result = ROM::read_file(&file_path).unwrap();
+        assert_eq!(result, data);
     }
 
     #[test]
-    fn test_read_invalid_rom_extension() {
-        let dir = setup_test_files(Some("invalid_extension.xxx"), Some(&[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]));
-        let invalid_extension_path = dir.path().join("invalid_extension.xxx").to_str().unwrap().to_string();
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(invalid_extension_path);
-
-        assert!(rom_file.is_err());
-        assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidExtension);
+    fn test_read_file_failure() {
+        let result = ROM::read_file("does_not_exist.nes");
+        assert!(matches!(result, Err(FileErrors::ErrorOpeningROMFile)));
     }
 
     #[test]
-    fn test_read_non_existent_rom_file() {
-        let non_existent_path = String::from("unexisting_file.nes");
-        let rom_file: Result<ROMFile<ROMFileLinux>, FileErrors> = ROMFile::new(non_existent_path);
-
-        assert!(rom_file.is_err());
-        assert_eq!(rom_file.unwrap_err(), FileErrors::ErrorInvalidROMFile);
+    fn test_read_exact_at_valid() {
+        let rom = ROM {
+            format: INes::default(),
+            rom_path: Path::new("dummy.nes"),
+            content: vec![0, 1, 2, 3, 4, 5],
+        };
+        let slice = rom.read_exact_at(2, 3).unwrap();
+        assert_eq!(slice, &[2, 3, 4]);
     }
 
     #[test]
-    fn test_read_rom_header() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
-
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
-
-        let valid_header: [u8; 16] = [78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-        assert_eq!(rom_file.read_rom_header().unwrap(), valid_header);
+    fn test_read_exact_at_invalid_range() {
+        let rom = ROM {
+            format: INes::default(),
+            rom_path: Path::new("dummy.nes"),
+            content: vec![0, 1, 2],
+        };
+        let result = rom.read_exact_at(2, 5);
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidRange)));
     }
 
     #[test]
-    fn test_read_rom_content() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
-
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
-
-        let content = rom_file.read_rom_content().unwrap();
-
-        assert_eq!(content.len(), 20);
-        assert_eq!(&content[0..4], &[78, 69, 83, 26]);
-        assert_eq!(&content, &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    fn test_get_header_success() {
+        let mut content = vec![0u8; 32];
+        content[0..4].copy_from_slice(DEFAULT_NES_ROM_HEADER);
+        let rom = ROM {
+            format: INes::default(),
+            rom_path: Path::new("dummy.nes"),
+            content,
+        };
+        let header = rom.get_header().unwrap();
+        assert_eq!(&header.0[0..4], DEFAULT_NES_ROM_HEADER);
     }
 
     #[test]
-    fn test_read_exact_at() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
-
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
-
-        assert_eq!(rom_file.read_exact_at(0, 0).unwrap(), &[]);
-
-        assert_eq!(rom_file.read_exact_at(0, 20).unwrap().len(), 20);
-
-        assert_eq!(rom_file.read_exact_at(0, 4).unwrap(), &[78, 69, 83, 26]);
-
-        assert_eq!(rom_file.read_exact_at(0, 16).unwrap(), &[78, 69, 83, 26, 2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-
-        assert_eq!(rom_file.read_exact_at(20, 1).unwrap_err(), FileErrors::ErrorInvalidRange);
+    fn test_get_header_too_small() {
+        let rom = ROM {
+            format: INes::default(),
+            rom_path: Path::new("dummy.nes"),
+            content: vec![0u8; 10],
+        };
+        let result = rom.get_header();
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidRange)));
     }
 
     #[test]
-    fn test_access_path() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
-
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path.clone()).unwrap();
-
-        assert_eq!(rom_file.path(), &valid_path);
+    fn test_parse_ines_invalid_header() {
+        let content = vec![0u8; 16];
+        let result = ROM::parse_ines(&content);
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidROMFile)));
     }
 
     #[test]
-    fn test_access_size() {
-        let dir = setup_test_files(None, None);
-        let valid_path = dir.path().join("valid.nes").to_str().unwrap().to_string();
+    fn test_parse_ines_too_small() {
+        let content = vec![0u8; 10];
+        let result = ROM::parse_ines(&content);
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidFileSize)));
+    }
 
-        let rom_file: ROMFile<ROMFileLinux> = ROMFile::new(valid_path).unwrap();
+    #[test]
+    fn test_parse_ines_valid() {
+        let mut header = [0u8; 16];
+        header[0..4].copy_from_slice(DEFAULT_NES_ROM_HEADER);
+        header[4] = 1; // 1 PRG block (16KB)
+        header[5] = 1; // 1 CHR block (8KB)
+        let prg = vec![0xAA; 16 * 1024];
+        let chr = vec![0xBB; 8 * 1024];
+        let mut content = Vec::new();
+        content.extend_from_slice(&header);
+        content.extend_from_slice(&prg);
+        content.extend_from_slice(&chr);
 
-        assert_eq!(rom_file.size(), 20);
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.prg_rom, prg);
+        assert_eq!(ines.chr_rom, chr);
+        assert_eq!(ines.prg_size, 16 * 1024);
+        assert_eq!(ines.chr_size, 8 * 1024);
+    }
+
+    #[test]
+    fn test_new_success() {
+        let mut header = [0u8; 16];
+        header[0..4].copy_from_slice(DEFAULT_NES_ROM_HEADER);
+        header[4] = 1;
+        header[5] = 1;
+        let prg = vec![0xAA; 16 * 1024];
+        let chr = vec![0xBB; 8 * 1024];
+
+        // Compose the ROM file content: header + prg + chr
+        let mut content = Vec::new();
+        content.extend_from_slice(&header);
+        content.extend_from_slice(&prg);
+        content.extend_from_slice(&chr);
+
+        let file = create_temp_rom_file(&content, ".nes");
+        let file_path = file.path();
+
+        let rom = ROM::new(&file_path).unwrap();
+        assert_eq!(rom.content.len(), 16 + 16 * 1024 + 8 * 1024);
+        assert_eq!(rom.format.prg_rom, prg);
+        assert_eq!(rom.format.chr_rom, chr);
+    }
+
+    #[test]
+    fn test_new_invalid_file() {
+        let dir = tempdir().unwrap();
+        let file_path = dir.path().join("bad.nes");
+        File::create(&file_path).unwrap();
+        let result = ROM::new(&file_path);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_path_and_size() {
+        let content = vec![1, 2, 3, 4, 5];
+        let rom = ROM {
+            format: INes::default(),
+            rom_path: Path::new("foo.nes"),
+            content: content.clone(),
+        };
+        assert_eq!(rom.size(), content.len());
+        assert_eq!(rom.path().as_ref(), Path::new("foo.nes"));
+    }
+
+    fn dummy_header(prg_blocks: u8, chr_blocks: u8, flags6: u8, flags7: u8) -> [u8; 16] {
+        let mut header = [0u8; 16];
+        header[0..4].copy_from_slice(DEFAULT_NES_ROM_HEADER);
+        header[4] = prg_blocks;
+        header[5] = chr_blocks;
+        header[6] = flags6;
+        header[7] = flags7;
+        header
+    }
+
+    #[test]
+    fn test_parse_ines_valid_no_trainer() {
+        let header = dummy_header(2, 1, 0, 0);
+        let prg_size = 2 * 16 * 1024;
+        let chr_size = 1 * 8 * 1024;
+        let mut content = Vec::from(header);
+        content.extend(vec![0xAA; prg_size]);
+        content.extend(vec![0xBB; chr_size]);
+
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.prg_rom.len(), prg_size);
+        assert_eq!(ines.chr_rom.len(), chr_size);
+        assert_eq!(ines.trainer, 0);
+        assert_eq!(ines.mirroring, MirroringType::Horizontal);
+    }
+
+    #[test]
+    fn test_parse_ines_valid_with_trainer() {
+        let header = dummy_header(1, 1, 0b00000100, 0);
+        let prg_size = 1 * 16 * 1024;
+        let chr_size = 1 * 8 * 1024;
+        let mut content = Vec::from(header);
+        content.extend(vec![0xFF; 512]); // trainer
+        content.extend(vec![0xAA; prg_size]);
+        content.extend(vec![0xBB; chr_size]);
+
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.trainer, 512);
+        assert_eq!(ines.prg_rom.len(), prg_size);
+        assert_eq!(ines.chr_rom.len(), chr_size);
+    }
+
+    #[test]
+    fn test_parse_ines_invalid_file_size() {
+        let header = dummy_header(2, 1, 0, 0);
+        let mut content = Vec::from(header);
+        // Not enough data for PRG/CHR
+        content.extend(vec![0xAA; 100]);
+        let result = ROM::parse_ines(&content);
+        assert!(matches!(result, Err(FileErrors::ErrorInvalidFileSize)));
+    }
+
+    #[test]
+    fn test_parse_ines_mirroring_types() {
+        // FourScreen
+        let header = dummy_header(1, 1, 0x08, 0);
+        let mut content = Vec::from(header);
+        content.extend(vec![0; 16 * 1024 + 8 * 1024]);
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.mirroring, MirroringType::FourScreen);
+
+        // Vertical
+        let header = dummy_header(1, 1, 0x01, 0);
+        let mut content = Vec::from(header);
+        content.extend(vec![0; 16 * 1024 + 8 * 1024]);
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.mirroring, MirroringType::Vertical);
+
+        // Horizontal (default)
+        let header = dummy_header(1, 1, 0x00, 0);
+        let mut content = Vec::from(header);
+        content.extend(vec![0; 16 * 1024 + 8 * 1024]);
+        let ines = ROM::parse_ines(&content).unwrap();
+        assert_eq!(ines.mirroring, MirroringType::Horizontal);
+    }
+
+    #[test]
+    fn test_parse_ines_mapper_number() {
+        let header = dummy_header(1, 1, 0xF0, 0xF0);
+        let mut content = Vec::from(header);
+        content.extend(vec![0; 16 * 1024 + 8 * 1024]);
+        let ines = ROM::parse_ines(&content).unwrap();
+        // Mapper = (header[7] & 0xF0) | (header[6] >> 4)
+        let expected_mapper = (0xF0 & 0xF0) | (0xF0 >> 4);
+        assert_eq!(ines.mapper, expected_mapper as u8);
     }
 }
