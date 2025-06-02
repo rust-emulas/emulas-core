@@ -6,10 +6,15 @@ on:
       - main
       - "feature/**"
 
+permissions:
+  contents: read
+
 jobs:
   bump:
     if: github.ref_name == 'main'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -58,6 +63,9 @@ jobs:
     if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
     needs: bump
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
         with:
