@@ -8,6 +8,7 @@ on:
 
 jobs:
   build:
+    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -116,24 +117,24 @@ jobs:
 
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      # - name: Commit e push via SSH direto na main com [skip release]
-      #   env:
-      #     EMULAS_SSH_KEY: ${{ secrets.EMULAS_SSH_KEY }}
-      #   run: |
-      #     echo "$EMULAS_SSH_KEY" > ./ci_key
-      #     chmod 600 ./ci_key
-      #     eval "$(ssh-agent -s)"
-      #     ssh-add ./ci_key
+      - name: Commit e push via SSH direto na main com [skip release]
+        env:
+          EMULAS_SSH_KEY: ${{ secrets.EMULAS_SSH_KEY }}
+        run: |
+          echo "$EMULAS_SSH_KEY" > ./ci_key
+          chmod 600 ./ci_key
+          eval "$(ssh-agent -s)"
+          ssh-add ./ci_key
 
-      #     git config user.name "GitHub Actions"
-      #     git config user.email "github-actions@users.noreply.github.com"
-      #     git config core.sshCommand "ssh -i ./ci_key -o StrictHostKeyChecking=no"
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git config core.sshCommand "ssh -i ./ci_key -o StrictHostKeyChecking=no"
 
-      #     git remote set-url origin git@github.com:${{ github.repository }}.git
+          git remote set-url origin git@github.com:${{ github.repository }}.git
 
-      #     git add Cargo.toml
-      #     git commit -m "chore: bump version to v${{ steps.bump.outputs.version }} [skip release]"
-      #     git push origin HEAD:main
+          git add Cargo.toml
+          git commit -m "chore: bump version to v${{ steps.bump.outputs.version }} [skip release]"
+          git push origin HEAD:main
 
   release:
     if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
@@ -156,6 +157,6 @@ jobs:
 
       - name: Publish built binary to GitHub releases
         run: |
-          gh release create ${{ needs.bump.outputs.version }} artifacts/*/*.zip --generate-notes
+          gh release create v${{ needs.bump.outputs.version }} artifacts/*/*.zip --generate-notes
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
