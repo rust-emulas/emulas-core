@@ -73,43 +73,8 @@ jobs:
           path: dist/*.zip
           if-no-files-found: error
 
-  release:
-    if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
-    needs: build
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_version.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: ./artifacts
-
-      - name: Set Git User Info
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "github-runner@github.com"
-
-      - name: Extract version
-        id: get_version
-        shell: bash
-        run: |
-          VERSION=$(cargo pkgid | sed 's/.*#//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Publish built binary to GitHub releases
-        run: |
-          gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*.zip --generate-notes
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-
   bump:
-    if: github.ref_name == 'main'
+    if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -167,3 +132,38 @@ jobs:
           git add Cargo.toml
           git commit -m "chore: bump version to v${{ steps.bump.outputs.version }} [skip release]"
           git push origin HEAD:main
+
+  release:
+    if: github.ref_name == 'main' && !contains(github.event.head_commit.message, '[skip release]')
+    needs: bump
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts
+
+      - name: Set Git User Info
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "github-runner@github.com"
+
+      - name: Extract version
+        id: get_version
+        shell: bash
+        run: |
+          VERSION=$(cargo pkgid | sed 's/.*#//')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish built binary to GitHub releases
+        run: |
+          gh release create v${{ steps.get_version.outputs.version }} artifacts/*/*.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
