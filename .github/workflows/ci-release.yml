@@ -25,6 +25,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+
       - name: Cache
         id: cache-cargo
         uses: actions/cache@v4
@@ -109,6 +110,7 @@ jobs:
 
   bump:
     if: github.ref_name == 'main'
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -122,8 +124,14 @@ jobs:
           MSG="$(git log -1 --pretty=%B | tr -d '\n')"
           echo "Último commit: $MSG"
 
-          CURRENT_VERSION=$(grep '^version' Cargo.toml | head -n1 | cut -d '"' -f2)
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          CURRENT_VERSION=$(grep '^version' Cargo.toml | head -n1 | cut -d '"' -f2 | tr -d '\r')
+          echo "Versão atual: $CURRENT_VERSION"
+
+          MAJOR=$(echo "$CURRENT_VERSION" | cut -d '.' -f1)
+          MINOR=$(echo "$CURRENT_VERSION" | cut -d '.' -f2)
+          PATCH=$(echo "$CURRENT_VERSION" | cut -d '.' -f3)
+
+          echo "MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
 
           if echo "$MSG" | grep -qiE '^feat:'; then
             ((MINOR++)); PATCH=0
@@ -141,29 +149,19 @@ jobs:
 
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
-      - name: Commit e push para branch temporária
-        if: contains(github.event.head_commit.message, '[skip release]')
+      - name: Commit e push via SSH direto na main com [skip release]
+        env:
+          EMULAS_SSH_KEY: ${{ secrets.EMULAS_SSH_KEY }}
         run: |
-          BRANCH_NAME="feature/${{ github.sha }}"
-          git checkout -b $BRANCH_NAME
+          echo "$EMULAS_SSH_KEY" > ./ci_key
+          chmod 600 ./ci_key
+          eval "$(ssh-agent -s)"
+          ssh-add ./ci_key
 
           git config user.name "GitHub Actions"
           git config user.email "github-actions@users.noreply.github.com"
+          git config core.sshCommand "ssh -i ./ci_key -o StrictHostKeyChecking=no"
 
           git add Cargo.toml
           git commit -m "chore: bump version to v${{ steps.bump.outputs.version }} [skip release]"
-
-          git remote set-url origin https://x-access-token:${{ secrets.GH_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin $BRANCH_NAME
-
-      - name: Criar Pull Request automaticamente
-        if: contains(github.event.head_commit.message, '[skip release]')
-        run: |
-          gh auth setup-git
-          gh pr create \
-            --head "feature/${{ github.sha }}" \
-            --base "main" \
-            --title "chore: bump version to v${{ steps.bump.outputs.version }}" \
-            --body "Atualização automática de versão com base no commit: ${{ github.sha }}"
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          git push origin HEAD:main
