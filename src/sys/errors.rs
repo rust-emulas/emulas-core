@@ -20,7 +20,7 @@ pub struct ErrorOpeningROMFile;
 pub struct ErrorReadingROMFile;
 
 #[derive(Debug, PartialEq)]
-pub enum FileErrors {
+pub enum Error {
     ErrorInvalidROMFile,
     ErrorInvalidExtension,
     ErrorInvalidRange,
@@ -29,17 +29,17 @@ pub enum FileErrors {
     ErrorReadingROMFile,
 }
 
-impl std::fmt::Display for FileErrors {
+impl std::fmt::Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match self {
-            FileErrors::ErrorInvalidROMFile => write!(f, "File is not a valid ROM file."),
-            FileErrors::ErrorInvalidExtension => write!(f, "File has an invalid extension."),
-            FileErrors::ErrorInvalidRange => write!(f, "Invalid size for ROM content"),
-            FileErrors::ErrorInvalidFileSize => {
+            Error::ErrorInvalidROMFile => write!(f, "File is not a valid ROM file."),
+            Error::ErrorInvalidExtension => write!(f, "File has an invalid extension."),
+            Error::ErrorInvalidRange => write!(f, "Invalid size for ROM content"),
+            Error::ErrorInvalidFileSize => {
                 write!(f, "File has a invalid size for ROM content")
             }
-            FileErrors::ErrorOpeningROMFile => write!(f, "Error when try to open file."),
-            FileErrors::ErrorReadingROMFile => write!(f, "Error when try to read file."),
+            Error::ErrorOpeningROMFile => write!(f, "Error when try to open file."),
+            Error::ErrorReadingROMFile => write!(f, "Error when try to read file."),
         }
     }
 }
