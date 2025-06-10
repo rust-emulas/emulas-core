@@ -18,8 +18,11 @@ pub trait ROMFs<'a>: Sized {
     fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, Error>
     where
         Self: Sized;
-    fn write_rom<P: AsRef<Path>, B: BusInterface>(&self, path: P, bus: &mut B)
-    -> Result<(), Error>;
+    fn write_rom_memory<P: AsRef<Path>, B: BusInterface>(
+        &self,
+        path: P,
+        bus: &mut B,
+    ) -> Result<(), Error>;
     fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), Error>;
     fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, Error>;
     fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], Error>;
@@ -116,9 +119,9 @@ impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
         Ok(header)
     }
 
-    pub fn write_rom<P: AsRef<Path>>(&self, path: P, bus: &mut Bus) -> Result<(), Error> {
+    pub fn write_rom_memory<P: AsRef<Path>>(&self, path: P, bus: &mut Bus) -> Result<(), Error> {
         info!("Writing ROM to path: {:?}", path.as_ref());
-        self.rom.write_rom(path, bus)
+        self.rom.write_rom_memory(path, bus)
     }
 }
 
@@ -434,7 +437,7 @@ mod tests {
         let mut bus = DummyBus::new(content);
 
         // Actually test
-        let result = rom.write_rom(tempfile, &mut bus);
+        let result = rom.write_rom_memory(tempfile, &mut bus);
         assert!(result.is_ok());
     }
 }

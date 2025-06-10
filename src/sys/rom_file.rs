@@ -35,7 +35,7 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         })
     }
 
-    fn write_rom<P: AsRef<Path>, B: BusInterface>(
+    fn write_rom_memory<P: AsRef<Path>, B: BusInterface>(
         &self,
         path: P,
         bus: &mut B,
