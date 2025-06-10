@@ -98,7 +98,11 @@ checksum = "5a2d2f3481209a6b42eec2fbb49063fb4e8d35b57023401495d4fe0f85c817f0"
 
 [[package]]
 name = "rust-emulas"
+<<<<<<< HEAD
 version = "0.4.0"
+=======
+version = "0.3.6"
+>>>>>>> d6161d7 (feat: update ROM handling methods to improve clarity and consistency)
 dependencies = [
  "bitflags",
  "log",
