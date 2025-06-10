@@ -18,11 +18,10 @@ pub trait ROMFs<'a>: Sized {
     fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, Error>
     where
         Self: Sized;
-    fn write_rom_memory<P: AsRef<Path>, B: BusInterface>(
-        &self,
-        path: P,
-        bus: &mut B,
-    ) -> Result<(), Error>;
+    fn write_rom_memory<B>(&self, bus: &mut B) -> Result<(), Error>
+    where
+        B: BusInterface,
+        Self: Sized;
     fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), Error>;
     fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, Error>;
     fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], Error>;
@@ -119,9 +118,9 @@ impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
         Ok(header)
     }
 
-    pub fn write_rom_memory<P: AsRef<Path>>(&self, path: P, bus: &mut Bus) -> Result<(), Error> {
-        info!("Writing ROM to path: {:?}", path.as_ref());
-        self.rom.write_rom_memory(path, bus)
+    pub fn write_rom_memory(&self, bus: &mut Bus) -> Result<(), Error> {
+        info!("Writing ROM to path: {:?}", self.path().as_ref());
+        self.rom.write_rom_memory(bus)
     }
 }
 
@@ -396,15 +395,15 @@ mod tests {
     }
 
     impl BusInterface for DummyBus {
-        fn new(_rom: Vec<u8>) -> Self {
+        fn new(_rom: &[u8]) -> Self {
             Self {
                 loaded: false,
                 last_data: vec![],
             }
         }
-        fn load_prg_rom(&mut self, data: Vec<u8>) {
+        fn load_prg_rom(&mut self, data: &[u8]) {
             self.loaded = true;
-            self.last_data = data;
+            self.last_data = data.to_vec();
         }
 
         fn resolve_prg_rom_index(&self, _addr: u16) -> usize {
@@ -422,7 +421,7 @@ mod tests {
 
     impl Default for DummyBus {
         fn default() -> Self {
-            Self::new(vec![])
+            Self::new(&[0])
         }
     }
 
@@ -434,10 +433,10 @@ mod tests {
         let rom_data = create_temp_rom_file(&content, ".nes");
         let tempfile = rom_data.path();
         let rom = ROM::new(&tempfile).unwrap();
-        let mut bus = DummyBus::new(content);
+        let mut bus = DummyBus::new(&content);
 
         // Actually test
-        let result = rom.write_rom_memory(tempfile, &mut bus);
+        let result = rom.write_rom_memory(&mut bus);
         assert!(result.is_ok());
     }
 }

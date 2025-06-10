@@ -35,13 +35,7 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         })
     }
 
-    fn write_rom_memory<P: AsRef<Path>, B: BusInterface>(
-        &self,
-        path: P,
-        bus: &mut B,
-    ) -> Result<(), Error> {
-        let rom = ROM::new(&path)?;
-
+    fn write_rom_memory<B: BusInterface>(&self, bus: &mut B) -> Result<(), Error> {
         let INes {
             prg_rom,
             chr_rom,
@@ -50,7 +44,7 @@ impl<'a> ROMFs<'a> for ROM<'a> {
             chr_size,
             mapper,
             mirroring,
-        } = rom.format;
+        } = &self.format;
 
         println!("PRG ROM Size: {}", prg_size);
         println!("CHR ROM Size: {}", chr_size);

@@ -5,10 +5,11 @@ use rust_emulas::sys::interfaces::ROMFs;
 use rust_emulas::sys::rom_file::ROM;
 
 fn main() {
-    let bus = &mut Bus::new(Vec::new());
     let rom_path: &Path = Path::new("./mamaco.nes");
     let rom = ROM::new(&rom_path).expect("Failed to load ROM");
-    rom.write_rom_memory(rom_path, bus)
+    let prg_rom = &rom.format.prg_rom;
+    let bus: &mut Bus = &mut Bus::new(&prg_rom);
+    rom.write_rom_memory(bus)
         .expect("Failed to write ROM to bus");
 
     // Assuming Bus has a method to get a reference to its memory, e.g., bus.memory()

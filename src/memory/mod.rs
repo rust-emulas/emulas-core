@@ -7,29 +7,29 @@ pub const PRG_SIZE: usize = 32768; // 32 KiB = 0xFFFF - 0x8000 + 1
 
 pub trait BusInterface {
     fn resolve_prg_rom_index(&self, addr: u16) -> usize;
-    fn new(prg_rom: Vec<u8>) -> Self;
+    fn new(prg_rom: &[u8]) -> Self;
     fn write(&mut self, addr: u16, value: u8);
     fn read(&self, addr: u16) -> u8;
-    fn load_prg_rom(&mut self, data: Vec<u8>) -> ();
+    fn load_prg_rom(&mut self, data: &[u8]) -> ();
 }
 
 pub struct Bus {
-    pub ram: Vec<u8>,
-    pub ppu: Vec<u8>,
+    pub ram: [u8; RAM_SIZE],
+    pub ppu: [u8; PPU_SIZE],
     pub prg_rom: Vec<u8>,
 }
 
 impl BusInterface for Bus {
-    fn new(prg_rom: Vec<u8>) -> Self {
+    fn new(prg_rom: &[u8]) -> Self {
         Bus {
-            ram: vec![0; RAM_SIZE],
-            ppu: vec![0; PPU_SIZE],
-            prg_rom,
+            ram: [0; RAM_SIZE],
+            ppu: [0; PPU_SIZE],
+            prg_rom: prg_rom.to_vec(),
         }
     }
 
-    fn load_prg_rom(&mut self, data: Vec<u8>) {
-        self.prg_rom = data;
+    fn load_prg_rom(&mut self, data: &[u8]) {
+        self.prg_rom = data.to_vec();
     }
 
     #[inline(always)]
