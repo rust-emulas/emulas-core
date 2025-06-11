@@ -89,32 +89,37 @@ jobs:
         id: bump
         shell: bash
         run: |
-          MSG="$(git log -1 --pretty=%B | tr -d '\n')"
-          echo "Último commit: $MSG"
-
+          MSG="$(git log -1 --pretty=%B)"
+          echo "Último commit:"
+          echo "$MSG"
+      
           CURRENT_VERSION=$(grep '^version' Cargo.toml | head -n1 | cut -d '"' -f2 | tr -d '\r')
           echo "Versão atual: $CURRENT_VERSION"
-
+      
           MAJOR=$(echo "$CURRENT_VERSION" | cut -d '.' -f1)
           MINOR=$(echo "$CURRENT_VERSION" | cut -d '.' -f2)
           PATCH=$(echo "$CURRENT_VERSION" | cut -d '.' -f3)
-
+      
           echo "MAJOR=$MAJOR, MINOR=$MINOR, PATCH=$PATCH"
-
-          if echo "$MSG" | grep -qiE '^feat:'; then
+      
+          if echo "$MSG" | grep -qiE '(^|[^a-z])feat:'; then
             ((MINOR++)); PATCH=0
-          elif echo "$MSG" | grep -qiE '^fix:'; then
+            echo "Tipo detectado: feat → bump minor"
+          elif echo "$MSG" | grep -qiE '(^|[^a-z])fix:'; then
             ((PATCH++))
-          elif echo "$MSG" | grep -qiE '^breaking'; then
+            echo "Tipo detectado: fix → bump patch"
+          elif echo "$MSG" | grep -qiE '(^|[^a-z])breaking'; then
             ((MAJOR++)); MINOR=0; PATCH=0
+            echo "Tipo detectado: breaking → bump major"
           else
             ((PATCH++))
+            echo "Tipo detectado: outro → bump patch"
           fi
-
+      
           NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
           echo "Nova versão: $NEW_VERSION"
           sed -i "s/^version = \".*\"/version = \"$NEW_VERSION\"/" Cargo.toml
-
+      
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Commit e push via SSH direto na main com [skip release]
