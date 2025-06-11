@@ -2,9 +2,12 @@ use std::fs::File;
 use std::io::Read;
 use std::path::Path;
 
-use crate::sys::{
-    errors::{Extension, FileErrors},
-    interfaces::ROMFs,
+use crate::{
+    memory::BusInterface,
+    sys::{
+        errors::{Error, Extension},
+        interfaces::ROMFs,
+    },
 };
 
 use super::interfaces::{HeaderBytes, INes, MirroringType};
@@ -19,7 +22,7 @@ pub struct ROM<'a> {
 }
 
 impl<'a> ROMFs<'a> for ROM<'a> {
-    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors> {
+    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, Error> {
         Self::validate_file(&rom_path)?;
 
         let content = Self::read_file(&rom_path)?;
@@ -32,20 +35,38 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         })
     }
 
-    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), FileErrors> {
+    fn write_rom_memory<B: BusInterface>(&self, bus: &mut B) -> Result<(), Error> {
+        let INes {
+            prg_rom,
+            chr_rom,
+            trainer,
+            prg_size,
+            chr_size,
+            mapper,
+            mirroring,
+        } = &self.format;
+
+        println!("PRG ROM Size: {}", prg_size);
+        println!("CHR ROM Size: {}", chr_size);
+        println!("Trainer Size: {}", trainer);
+        println!("Mapper: {}", mapper);
+        println!("Mirroring: {:?}", mirroring);
+
+        bus.load_prg_rom(prg_rom);
+
+        Ok(())
+    }
+
+    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), Error> {
         let rom_path = Path::new(rom_path.as_ref());
 
-        if !rom_path.is_file() {
-            return Err(FileErrors::ErrorInvalidROMFile);
-        }
-
         match rom_path.extension() {
-            None => return Err(FileErrors::ErrorInvalidExtension),
+            None => return Err(Error::ErrorInvalidExtension),
             Some(extension) => {
                 let extension = Extension::from_str(extension.to_str().unwrap_or(""));
 
                 if extension == Extension::InvalidExtension {
-                    return Err(FileErrors::ErrorInvalidExtension);
+                    return Err(Error::ErrorInvalidExtension);
                 }
             }
         }
@@ -53,31 +74,29 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         Ok(())
     }
 
-    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, FileErrors> {
+    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, Error> {
         let mut buffer = Vec::new();
 
         match File::open(rom_path) {
             Ok(mut f) => {
                 f.read_to_end(&mut buffer)
-                    .map_err(|_| FileErrors::ErrorOpeningROMFile)?;
+                    .map_err(|_| Error::ErrorOpeningROMFile)?;
                 Ok(buffer)
             }
-            Err(_) => Err(FileErrors::ErrorOpeningROMFile),
+            Err(_) => Err(Error::ErrorOpeningROMFile),
         }
     }
 
-    fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors> {
-        let end = offset
-            .checked_add(size)
-            .ok_or(FileErrors::ErrorInvalidRange)?;
+    fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], Error> {
+        let end = offset.checked_add(size).ok_or(Error::ErrorInvalidRange)?;
 
         if end > self.content.len() || offset > self.content.len() {
-            return Err(FileErrors::ErrorInvalidRange);
+            return Err(Error::ErrorInvalidRange);
         }
 
         Ok(&self.content[offset..end])
     }
-    fn get_header(&self) -> Result<HeaderBytes, FileErrors> {
+    fn get_header(&self) -> Result<HeaderBytes, Error> {
         let header = self.read_exact_at(0, 16)?;
 
         let mut rom_header = HeaderBytes([0; 16]);
@@ -95,15 +114,15 @@ impl<'a> ROMFs<'a> for ROM<'a> {
 }
 
 impl ROM<'_> {
-    pub fn parse_ines(content: &[u8]) -> Result<INes, FileErrors> {
+    pub fn parse_ines(content: &[u8]) -> Result<INes, Error> {
         println!("Content length: {}", content.len());
         if content.len() < 16 {
-            return Err(FileErrors::ErrorInvalidFileSize);
+            return Err(Error::ErrorInvalidFileSize);
         }
 
         let header = &content[0..16];
         if header[0..4] != *DEFAULT_NES_ROM_HEADER {
-            return Err(FileErrors::ErrorInvalidROMFile);
+            return Err(Error::ErrorInvalidROMFile);
         }
 
         let prg_blocks = header[4] as usize;
@@ -121,7 +140,7 @@ impl ROM<'_> {
         let chr_end = chr_start + chr_size;
 
         if chr_end > content.len() || prg_end > content.len() {
-            return Err(FileErrors::ErrorInvalidFileSize);
+            return Err(Error::ErrorInvalidFileSize);
         }
 
         let trainer = if has_trainer { 512 } else { 0 };

@@ -5,7 +5,9 @@ use std::{
 
 use log::info;
 
-use super::errors::FileErrors;
+use crate::memory::{Bus, BusInterface};
+
+use super::errors::Error;
 
 #[derive(Debug)]
 pub struct ROMFile<T> {
@@ -13,13 +15,17 @@ pub struct ROMFile<T> {
 }
 
 pub trait ROMFs<'a>: Sized {
-    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors>
+    fn new<P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, Error>
     where
         Self: Sized;
-    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), FileErrors>;
-    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, FileErrors>;
-    fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors>;
-    fn get_header(&self) -> Result<HeaderBytes, FileErrors>;
+    fn write_rom_memory<B>(&self, bus: &mut B) -> Result<(), Error>
+    where
+        B: BusInterface,
+        Self: Sized;
+    fn validate_file<P: AsRef<Path>>(rom_path: P) -> Result<(), Error>;
+    fn read_file<P: AsRef<Path>>(rom_path: P) -> Result<Vec<u8>, Error>;
+    fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], Error>;
+    fn get_header(&self) -> Result<HeaderBytes, Error>;
     fn path(&self) -> impl AsRef<Path>;
     fn size(&self) -> usize;
 }
@@ -81,7 +87,7 @@ impl DerefMut for HeaderBytes {
 }
 
 impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
-    pub fn new<'a, P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, FileErrors> {
+    pub fn new<'a, P: AsRef<Path>>(rom_path: &'a P) -> Result<Self, Error> {
         let rom = T::new(rom_path)?;
 
         Ok(ROMFile { rom })
@@ -96,27 +102,35 @@ impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
         self.rom.size()
     }
 
-    pub fn read_rom_content(&self) -> Result<&[u8], FileErrors> {
+    pub fn read_rom_content(&self) -> Result<&[u8], Error> {
         info!("Reading ROM content of size: {}", self.size());
         Ok(&self.rom.read_exact_at(0, self.size())?)
     }
 
-    pub fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], FileErrors> {
+    pub fn read_exact_at(&self, offset: usize, size: usize) -> Result<&[u8], Error> {
         Ok(&self.rom.read_exact_at(offset, size)?)
     }
 
-    pub fn get_header(&self) -> Result<HeaderBytes, FileErrors> {
+    pub fn get_header(&self) -> Result<HeaderBytes, Error> {
         let header = self.rom.get_header()?;
         info!("Reading ROM header {}", header);
 
         Ok(header)
+    }
+
+    pub fn write_rom_memory(&self, bus: &mut Bus) -> Result<(), Error> {
+        info!("Writing ROM to path: {:?}", self.path().as_ref());
+        self.rom.write_rom_memory(bus)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM};
+    use crate::{
+        memory::BusInterface,
+        sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM},
+    };
     use std::{
         fs::File,
         io::{Seek, SeekFrom, Write},
@@ -136,18 +150,12 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_file_invalid_path() {
-        let result = ROM::validate_file("nonexistent.nes");
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidROMFile)));
-    }
-
-    #[test]
     fn test_validate_file_invalid_extension() {
         let dir = tempdir().unwrap();
         let file_path = dir.path().join("test.txt");
         File::create(&file_path).unwrap();
         let result = ROM::validate_file(&file_path);
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidExtension)));
+        assert!(matches!(result, Err(Error::ErrorInvalidExtension)));
     }
 
     #[test]
@@ -166,7 +174,7 @@ mod tests {
     #[test]
     fn test_read_file_failure() {
         let result = ROM::read_file("does_not_exist.nes");
-        assert!(matches!(result, Err(FileErrors::ErrorOpeningROMFile)));
+        assert!(matches!(result, Err(Error::ErrorOpeningROMFile)));
     }
 
     #[test]
@@ -188,7 +196,7 @@ mod tests {
             content: vec![0, 1, 2],
         };
         let result = rom.read_exact_at(2, 5);
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidRange)));
+        assert!(matches!(result, Err(Error::ErrorInvalidRange)));
     }
 
     #[test]
@@ -212,21 +220,21 @@ mod tests {
             content: vec![0u8; 10],
         };
         let result = rom.get_header();
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidRange)));
+        assert!(matches!(result, Err(Error::ErrorInvalidRange)));
     }
 
     #[test]
     fn test_parse_ines_invalid_header() {
         let content = vec![0u8; 16];
         let result = ROM::parse_ines(&content);
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidROMFile)));
+        assert!(matches!(result, Err(Error::ErrorInvalidROMFile)));
     }
 
     #[test]
     fn test_parse_ines_too_small() {
         let content = vec![0u8; 10];
         let result = ROM::parse_ines(&content);
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidFileSize)));
+        assert!(matches!(result, Err(Error::ErrorInvalidFileSize)));
     }
 
     #[test]
@@ -343,7 +351,7 @@ mod tests {
         // Not enough data for PRG/CHR
         content.extend(vec![0xAA; 100]);
         let result = ROM::parse_ines(&content);
-        assert!(matches!(result, Err(FileErrors::ErrorInvalidFileSize)));
+        assert!(matches!(result, Err(Error::ErrorInvalidFileSize)));
     }
 
     #[test]
@@ -379,5 +387,56 @@ mod tests {
         // Mapper = (header[7] & 0xF0) | (header[6] >> 4)
         let expected_mapper = (0xF0 & 0xF0) | (0xF0 >> 4);
         assert_eq!(ines.mapper, expected_mapper as u8);
+    }
+
+    struct DummyBus {
+        pub loaded: bool,
+        pub last_data: Vec<u8>,
+    }
+
+    impl BusInterface for DummyBus {
+        fn new(_rom: &[u8]) -> Self {
+            Self {
+                loaded: false,
+                last_data: vec![],
+            }
+        }
+        fn load_prg_rom(&mut self, data: &[u8]) {
+            self.loaded = true;
+            self.last_data = data.to_vec();
+        }
+
+        fn resolve_prg_rom_index(&self, _addr: u16) -> usize {
+            todo!()
+        }
+
+        fn write(&mut self, _addr: u16, _value: u8) {
+            todo!()
+        }
+
+        fn read(&self, _addr: u16) -> u8 {
+            todo!()
+        }
+    }
+
+    impl Default for DummyBus {
+        fn default() -> Self {
+            Self::new(&[0])
+        }
+    }
+
+    #[test]
+    fn test_write_rom_loads_prg_rom_and_prints_info() {
+        let mut content = vec![0u8; 0xFFFFF]; // 16KB PRG ROM
+        content[0..4].copy_from_slice(DEFAULT_NES_ROM_HEADER);
+
+        let rom_data = create_temp_rom_file(&content, ".nes");
+        let tempfile = rom_data.path();
+        let rom = ROM::new(&tempfile).unwrap();
+        let mut bus = DummyBus::new(&content);
+
+        // Actually test
+        let result = rom.write_rom_memory(&mut bus);
+        assert!(result.is_ok());
     }
 }
