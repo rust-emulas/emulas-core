@@ -15,9 +15,9 @@ pub trait BusInterface {
 }
 
 pub struct Bus {
-    ram: [u8; RAM_SIZE],
-    ppu: [u8; PPU_SIZE],
-    prg_rom: Vec<u8>,
+    pub ram: [u8; RAM_SIZE],
+    pub ppu: [u8; PPU_SIZE],
+    pub prg_rom: Vec<u8>,
 }
 
 impl BusInterface for Bus {
