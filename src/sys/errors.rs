@@ -18,6 +18,7 @@ pub struct ErrorInvalidExtension;
 pub struct ErrorInvalidRange;
 pub struct ErrorOpeningROMFile;
 pub struct ErrorReadingROMFile;
+pub struct ErrorLoadingROMFile;
 
 #[derive(Debug, PartialEq)]
 pub enum Error {
@@ -27,6 +28,7 @@ pub enum Error {
     ErrorInvalidFileSize,
     ErrorOpeningROMFile,
     ErrorReadingROMFile,
+    ErrorLoadingROMFile,
 }
 
 impl std::fmt::Display for Error {
@@ -38,8 +40,11 @@ impl std::fmt::Display for Error {
             Error::ErrorInvalidFileSize => {
                 write!(f, "File has a invalid size for ROM content")
             }
-            Error::ErrorOpeningROMFile => write!(f, "Error when try to open file."),
-            Error::ErrorReadingROMFile => write!(f, "Error when try to read file."),
+            Error::ErrorOpeningROMFile => write!(f, "Error when trying to open file."),
+            Error::ErrorReadingROMFile => write!(f, "Error when trying to read file."),
+            Error::ErrorLoadingROMFile => {
+                write!(f, "Error loading ROM file into PRG ROM memory section..")
+            }
         }
     }
 }
