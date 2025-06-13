@@ -1,3 +1,4 @@
+use crate::sys::errors::Error;
 use core::panic;
 
 pub const RAM_SIZE: usize = 2048; // 2 KiB = 0x07FF - 0x0000 + 1 = Max 8 KiB
@@ -10,13 +11,13 @@ pub trait BusInterface {
     fn new(prg_rom: &[u8]) -> Self;
     fn write(&mut self, addr: u16, value: u8);
     fn read(&self, addr: u16) -> u8;
-    fn load_prg_rom(&mut self, data: &[u8]) -> ();
+    fn load_prg_rom(&mut self, data: &[u8]) -> Result<usize, Error>;
 }
 
 pub struct Bus {
-    pub ram: [u8; RAM_SIZE],
-    pub ppu: [u8; PPU_SIZE],
-    pub prg_rom: Vec<u8>,
+    ram: [u8; RAM_SIZE],
+    ppu: [u8; PPU_SIZE],
+    prg_rom: Vec<u8>,
 }
 
 impl BusInterface for Bus {
@@ -28,8 +29,13 @@ impl BusInterface for Bus {
         }
     }
 
-    fn load_prg_rom(&mut self, data: &[u8]) {
+    fn load_prg_rom(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.prg_rom = data.to_vec();
+
+        if self.prg_rom.len() > PRG_SIZE {
+            return Err(Error::ErrorLoadingROMFile);
+        }
+        Ok(self.prg_rom.len())
     }
 
     #[inline(always)]

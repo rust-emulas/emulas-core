@@ -3,11 +3,11 @@ use std::{
     path::Path,
 };
 
+use crate::{
+    memory::{Bus, BusInterface},
+    sys::errors::Error,
+};
 use log::info;
-
-use crate::memory::{Bus, BusInterface};
-
-use super::errors::Error;
 
 #[derive(Debug)]
 pub struct ROMFile<T> {
@@ -120,17 +120,14 @@ impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
 
     pub fn write_rom_memory(&self, bus: &mut Bus) -> Result<(), Error> {
         info!("Writing ROM to path: {:?}", self.path().as_ref());
-        self.rom.write_rom_memory(bus)
+        Ok(self.rom.write_rom_memory(bus)?)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        memory::BusInterface,
-        sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM},
-    };
+    use crate::sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM};
     use std::{
         fs::File,
         io::{Seek, SeekFrom, Write},
@@ -147,6 +144,12 @@ mod tests {
             .expect("failed to write to temp file");
         file.seek(SeekFrom::Start(0)).unwrap(); // importante para leitura posterior
         file
+    }
+
+    #[test]
+    fn test_validate_file_invalid_path() {
+        let result = ROM::validate_file("nonexistent.nes");
+        assert!(matches!(result, Err(Error::ErrorInvalidROMFile)));
     }
 
     #[test]
@@ -401,9 +404,11 @@ mod tests {
                 last_data: vec![],
             }
         }
-        fn load_prg_rom(&mut self, data: &[u8]) {
+        fn load_prg_rom(&mut self, data: &[u8]) -> Result<usize, Error> {
             self.loaded = true;
             self.last_data = data.to_vec();
+
+            Ok(data.len())
         }
 
         fn resolve_prg_rom_index(&self, _addr: u16) -> usize {

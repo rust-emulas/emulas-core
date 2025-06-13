@@ -51,8 +51,7 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         println!("Trainer Size: {}", trainer);
         println!("Mapper: {}", mapper);
         println!("Mirroring: {:?}", mirroring);
-
-        bus.load_prg_rom(prg_rom);
+        bus.load_prg_rom(prg_rom)?;
 
         Ok(())
     }
