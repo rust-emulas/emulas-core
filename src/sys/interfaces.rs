@@ -127,7 +127,10 @@ impl<T: for<'a> ROMFs<'a>> ROMFile<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM};
+    use crate::{
+        memory::{MIRRORED_PRG_SIZE, PPU_SIZE, PRG_SIZE, RAM_SIZE},
+        sys::rom_file::{DEFAULT_NES_ROM_HEADER, ROM},
+    };
     use std::{
         fs::File,
         io::{Seek, SeekFrom, Write},
@@ -149,6 +152,7 @@ mod tests {
     #[test]
     fn test_validate_file_invalid_path() {
         let result = ROM::validate_file("nonexistent.nes");
+        println!("Result: {:?}", result);
         assert!(matches!(result, Err(Error::ErrorInvalidROMFile)));
     }
 
@@ -443,5 +447,85 @@ mod tests {
         // Actually test
         let result = rom.write_rom_memory(&mut bus);
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_bus_new_initializes_memory() {
+        let prg_data = vec![1, 2, 3, 4];
+        let bus = Bus::new(&prg_data);
+        assert_eq!(bus.ram, [0; RAM_SIZE]);
+        assert_eq!(bus.ppu, [0; PPU_SIZE]);
+        assert_eq!(bus.prg_rom, prg_data);
+    }
+
+    #[test]
+    fn test_write_and_read_ram() {
+        let mut bus = Bus::new(&[]);
+        bus.write(0x0002, 0xAB);
+        assert_eq!(bus.read(0x0002), 0xAB);
+        // Test RAM mirroring
+        bus.write(0x0802, 0xCD);
+        assert_eq!(bus.read(0x0002), 0xCD);
+    }
+
+    #[test]
+    fn test_write_and_read_ppu() {
+        let mut bus = Bus::new(&[]);
+        bus.write(0x2003, 0x55);
+        assert_eq!(bus.read(0x2003), 0x55);
+        // Test PPU mirroring
+        bus.write(0x200B, 0x77);
+        assert_eq!(bus.read(0x2003), 0x77);
+    }
+
+    #[test]
+    #[should_panic(expected = "Attempted to write to PRG ROM")]
+    fn test_write_to_prg_rom_panics() {
+        let mut bus = Bus::new(&[0; PRG_SIZE]);
+        bus.write(0x8000, 0xFF);
+    }
+
+    #[test]
+    fn test_resolve_prg_rom_index_mirrored() {
+        let prg_data = vec![0xAA; MIRRORED_PRG_SIZE];
+        let bus = Bus::new(&prg_data);
+        // Should wrap around for 16 KiB ROMs
+        let idx = bus.resolve_prg_rom_index(0xC000);
+
+        assert_eq!(idx, idx % MIRRORED_PRG_SIZE);
+        let idx2 = bus.resolve_prg_rom_index(0x8000);
+        assert_eq!(idx2, 0x0000);
+    }
+
+    #[test]
+    fn test_load_prg_rom_success() {
+        let mut bus = Bus::new(&[]);
+        let data = vec![0x11; PRG_SIZE];
+        let result = bus.load_prg_rom(&data);
+        assert!(result.is_ok());
+        assert_eq!(bus.prg_rom, data);
+    }
+
+    #[test]
+    fn test_load_prg_rom_too_small() {
+        let mut bus = Bus::new(&[]);
+        let data = vec![];
+        let result = bus.load_prg_rom(&data);
+        assert_eq!(result, Err(Error::ErrorLoadingROMFile));
+    }
+
+    #[test]
+    fn test_load_prg_rom_too_large() {
+        let mut bus = Bus::new(&[]);
+        let data = vec![0xFF; PRG_SIZE + 1];
+        let result = bus.load_prg_rom(&data);
+        assert_eq!(result, Err(Error::ErrorLoadingROMFile));
+    }
+
+    #[test]
+    #[should_panic(expected = "Invalid address")]
+    fn test_read_invalid_address_panics() {
+        let bus = Bus::new(&[]);
+        bus.read(0x5000);
     }
 }

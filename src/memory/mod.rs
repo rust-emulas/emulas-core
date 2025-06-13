@@ -32,7 +32,7 @@ impl BusInterface for Bus {
     fn load_prg_rom(&mut self, data: &[u8]) -> Result<usize, Error> {
         self.prg_rom = data.to_vec();
 
-        if self.prg_rom.len() > PRG_SIZE {
+        if self.prg_rom.len() < 1 || self.prg_rom.len() > PRG_SIZE {
             return Err(Error::ErrorLoadingROMFile);
         }
         Ok(self.prg_rom.len())

@@ -62,8 +62,11 @@ impl<'a> ROMFs<'a> for ROM<'a> {
         match rom_path.extension() {
             None => return Err(Error::ErrorInvalidExtension),
             Some(extension) => {
-                let extension = Extension::from_str(extension.to_str().unwrap_or(""));
+                if !rom_path.exists() || !rom_path.is_file() {
+                    return Err(Error::ErrorInvalidROMFile);
+                }
 
+                let extension = Extension::from_str(extension.to_str().unwrap_or(""));
                 if extension == Extension::InvalidExtension {
                     return Err(Error::ErrorInvalidExtension);
                 }
