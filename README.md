@@ -33,9 +33,9 @@ rust-emulas/
 │   │   └── mod.rs                # Memory bus and mapping logic
 │   └── sys/
 │       ├── errors.rs             # Custom error types for system operations
-│       ├── interfaces.rs         # Traits and interfaces for system components
+│       ├── interfaces.rs         # Traits and interfaces for system components and ROM abstraction
 │       ├── mod.rs                # System module root
-│       └── rom_file.rs           # NES ROM file parsing and loading
+│       └── rom_file.rs           # NES ROM file parsing, validation, and memory mapping
 └── target/
     └── ... (build artifacts)
 ```
@@ -51,8 +51,17 @@ rust-emulas/
 - **src/memory/mod.rs**: Implements the memory bus, address mapping, and memory read/write logic.
 - **src/sys/**: System-level abstractions and utilities.
   - **errors.rs**: Defines error types used throughout the emulator.
-  - **interfaces.rs**: Contains traits and interfaces for system components (e.g., memory, CPU).
-  - **rom_file.rs**: Handles loading and parsing of NES ROM files.
+  - **interfaces.rs**: Contains traits and interfaces for system components and ROM abstraction, including:
+    - `ROMFs`: Trait for ROM file operations (new, write_rom_memory, validate_file, read_file, read_exact_at, get_header, path, size)
+    - `ROMFile`: Wrapper struct for ROMFs implementations
+    - `INes`, `MirroringType`, `HeaderBytes`: NES ROM format structures
+  - **rom_file.rs**: Handles loading, parsing, and validating NES ROM files, implements the `ROMFs` trait for the `ROM` struct, and provides functions for:
+    - ROM file validation (`validate_file`)
+    - Reading file content (`read_file`)
+    - Reading ROM memory (`write_rom_memory`)
+    - Reading exact bytes at offset (`read_exact_at`)
+    - Extracting header (`get_header`)
+    - Path and size accessors
   - **mod.rs**: Integrates system components.
 
 ## Getting Started
